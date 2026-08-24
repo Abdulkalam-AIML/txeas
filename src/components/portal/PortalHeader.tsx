@@ -12,7 +12,6 @@ import {
   Shield,
   UserCheck,
   Building,
-  Sparkles,
   ExternalLink,
   ChevronDown,
   Menu,
@@ -43,7 +42,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   };
 
   return (
-    <header className="no-print bg-tgb-darknavy/95 border-b border-tgb-navyborder sticky top-[29px] z-30 backdrop-blur-md px-4 sm:px-6 py-2.5">
+    <header className="no-print bg-tgb-darknavy/95 border-b border-tgb-navyborder sticky top-0 z-30 backdrop-blur-md px-4 sm:px-6 py-2.5">
       <div className="flex items-center justify-between gap-4">
         {/* Left: Mobile Toggle & Brand */}
         <div className="flex items-center gap-3 shrink-0">
@@ -54,7 +53,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
             <Menu className="w-5 h-5" />
           </button>
 
-          <Link href={role === 'SUPER_ADMIN' ? '/admin/dashboard' : '/employee/dashboard'}>
+          <Link href="/portal/dashboard">
             <TexasGoldBuyersLogo size="sm" />
           </Link>
 
@@ -83,13 +82,12 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
         {/* Right: Quick Controls, Notifications & User Profile */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Public Website Preview Link */}
+          {/* Public Website Link */}
           <Link
             href="/"
-            target="_blank"
             className="hidden sm:flex items-center gap-1 text-[11px] font-semibold text-gray-300 hover:text-tgb-gold px-2.5 py-1.5 rounded-lg bg-tgb-navy/60 border border-tgb-navyborder transition-colors"
           >
-            <span>Live Site</span>
+            <span>Public Site</span>
             <ExternalLink className="w-3 h-3" />
           </Link>
 
@@ -117,7 +115,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                       role === 'SUPER_ADMIN' ? 'text-amber-400' : 'text-emerald-400'
                     }`}
                   >
-                    {role === 'SUPER_ADMIN' ? 'Super Admin' : 'Staff Employee'}
+                    {role === 'SUPER_ADMIN' ? 'Super Admin' : 'Staff Appraiser'}
                   </span>
                 </div>
               </div>
@@ -136,34 +134,38 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="text-[10px] text-gray-400 px-2 uppercase font-semibold">Switch Demo Persona</div>
-                  <button
-                    onClick={() => {
-                      switchRole('SUPER_ADMIN');
-                      setProfileOpen(false);
-                    }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 ${
-                      role === 'SUPER_ADMIN' ? 'bg-tgb-gold/20 text-tgb-gold font-bold' : 'text-gray-300 hover:bg-tgb-darknavy'
-                    }`}
-                  >
-                    <Shield className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Super Admin</span>
-                  </button>
+                {user?.role === 'SUPER_ADMIN' && (
+                  <div className="space-y-1">
+                    <div className="text-[10px] text-gray-400 px-2 uppercase font-semibold">Switch Workspace View</div>
+                    <button
+                      onClick={() => {
+                        switchRole('SUPER_ADMIN');
+                        setProfileOpen(false);
+                        router.push('/admin/dashboard');
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 ${
+                        role === 'SUPER_ADMIN' ? 'bg-tgb-gold/20 text-tgb-gold font-bold' : 'text-gray-300 hover:bg-tgb-darknavy'
+                      }`}
+                    >
+                      <Shield className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Executive Suite</span>
+                    </button>
 
-                  <button
-                    onClick={() => {
-                      switchRole('EMPLOYEE');
-                      setProfileOpen(false);
-                    }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 ${
-                      role === 'EMPLOYEE' ? 'bg-emerald-500/20 text-emerald-400 font-bold' : 'text-gray-300 hover:bg-tgb-darknavy'
-                    }`}
-                  >
-                    <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Staff Employee</span>
-                  </button>
-                </div>
+                    <button
+                      onClick={() => {
+                        switchRole('EMPLOYEE');
+                        setProfileOpen(false);
+                        router.push('/employee/dashboard');
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 ${
+                        role === 'EMPLOYEE' ? 'bg-emerald-500/20 text-emerald-400 font-bold' : 'text-gray-300 hover:bg-tgb-darknavy'
+                      }`}
+                    >
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Counter POS</span>
+                    </button>
+                  </div>
+                )}
 
                 <div className="pt-2 border-t border-tgb-navyborder">
                   <button

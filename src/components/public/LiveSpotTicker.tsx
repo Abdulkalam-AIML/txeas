@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { SpotPrices } from '@/types';
 import { itemService } from '@/services';
-import { TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock, ShieldCheck } from 'lucide-react';
 
 export const LiveSpotTicker: React.FC = () => {
   const [spots, setSpots] = useState<SpotPrices | null>(null);
@@ -15,12 +15,14 @@ export const LiveSpotTicker: React.FC = () => {
   if (!spots) return null;
 
   return (
-    <div className="bg-tgb-darknavy/90 border-b border-tgb-navyborder/80 text-xs py-1.5 px-4">
+    <div className="bg-tgb-darknavy/95 border-b border-tgb-navyborder/80 text-xs py-1.5 px-4">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
         {/* Market Status */}
         <div className="flex items-center gap-2 text-tgb-muted">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-          <span className="font-medium text-gray-300">LIVE TEXAS SPOT MARKET:</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+          <span className="font-semibold text-gray-200 tracking-wider text-[11px] uppercase">
+            Market Reference Benchmark:
+          </span>
         </div>
 
         {/* Spot Rates Carousel / Bar */}
@@ -55,8 +57,8 @@ export const LiveSpotTicker: React.FC = () => {
 
         {/* Guarantee Tag */}
         <div className="hidden lg:flex items-center gap-1.5 text-tgb-gold text-[11px] font-medium">
-          <Clock className="w-3 h-3" />
-          <span>Locked Spot Pricing Guaranteed at Counter</span>
+          <ShieldCheck className="w-3.5 h-3.5 text-tgb-gold" />
+          <span>Locked Reference Benchmark Guaranteed at Counter</span>
         </div>
       </div>
     </div>

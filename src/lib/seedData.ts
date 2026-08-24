@@ -61,7 +61,7 @@ export const INITIAL_LOCATIONS: Location[] = [
 export const INITIAL_USERS: User[] = [
   {
     id: 'USR-001',
-    name: 'Robert H. Sterling (Super Admin)',
+    name: 'Alexander Sterling',
     email: 'admin@texasgoldbuyers.com',
     phone: '(214) 555-0100',
     role: 'SUPER_ADMIN',
@@ -73,7 +73,7 @@ export const INITIAL_USERS: User[] = [
   },
   {
     id: 'USR-002',
-    name: 'Michael Alvarez (Lead Appraiser)',
+    name: 'Michael Alvarez',
     email: 'employee@texasgoldbuyers.com',
     phone: '(214) 555-0144',
     role: 'EMPLOYEE',
@@ -121,15 +121,15 @@ export const INITIAL_USERS: User[] = [
   },
   {
     id: 'USR-006',
-    name: 'David Chen (Weekend Vault)',
+    name: 'David Chen',
     email: 'david.chen@texasgoldbuyers.com',
     phone: '(214) 555-0488',
     role: 'EMPLOYEE',
     locationId: 'LOC-01',
     locationName: 'Dallas Flagship — Uptown',
     status: 'ACTIVE',
-    joinedDate: '2024-11-05T09:00:00Z',
-    lastLogin: '2026-08-24T11:00:00Z',
+    joinedDate: '2024-09-01T08:00:00Z',
+    lastLogin: '2026-08-24T08:10:00Z',
   },
 ];
 
@@ -475,12 +475,12 @@ export function generateSeedTransactions(customers: Customer[], employees: User[
         id: `AUD-VOID-${year}-${String(i + 1).padStart(6, '0')}`,
         timestamp: txDate,
         userId: 'USR-001',
-        userName: 'Robert H. Sterling (Super Admin)',
+        userName: 'Alexander Sterling',
         role: 'SUPER_ADMIN',
         action: 'TRANSACTION_VOIDED',
         entity: 'TRANSACTION',
         entityId: txId,
-        details: `Super Admin voided transaction ${txId}. Reason: Customer requested test transaction cancellation.`,
+        details: `Super Admin voided transaction ${txId}. Reason: Customer requested cancellation before settlement.`,
         ipAddress: '192.168.1.1',
         userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) TGB-Terminal/Admin',
       });

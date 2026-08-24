@@ -1,94 +1,113 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import { Shield, UserCheck, RefreshCw, ChevronDown, ChevronUp, ExternalLink, Sparkles } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Shield, UserCheck, ExternalLink, LogOut, ArrowRight, Building } from 'lucide-react';
 
 export const DemoRoleSwitcherBanner: React.FC = () => {
-  const { user, role, switchRole, resetDemoDatabase } = useAuth();
-  const [isExpanded, setIsExpanded] = useState(true);
+  const { user, role, logout, switchRole } = useAuth();
+  const pathname = usePathname();
+
+  // If user is not authenticated or is viewing a public page without an active session, keep public view 100% clean
+  if (!user) {
+    return null;
+  }
+
+  // Determine if on portal vs public
+  const isPortal = pathname.startsWith('/admin') || pathname.startsWith('/employee') || pathname.startsWith('/portal');
 
   return (
-    <div className="no-print bg-gradient-to-r from-[#0d1f30] via-[#102a42] to-[#0d1f30] border-b border-tgb-gold/30 text-xs py-1 px-4 z-50 sticky top-0 shadow-md">
-      <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-        {/* Left: Demo status */}
-        <div className="flex items-center gap-2">
-          <span className="flex h-2 w-2 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tgb-gold opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-tgb-gold"></span>
-          </span>
-          <span className="font-semibold text-tgb-gold uppercase tracking-wider text-[11px] flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-tgb-goldlight" />
-            Vercel Demo Environment
-          </span>
-          <span className="hidden sm:inline text-tgb-muted">|</span>
-          <span className="hidden sm:inline text-gray-300">
-            Active: <strong className="text-white font-medium">{user?.name || 'Guest'}</strong> (
-            <span className={`font-semibold ${role === 'SUPER_ADMIN' ? 'text-amber-400' : 'text-emerald-400'}`}>
-              {role === 'SUPER_ADMIN' ? 'Super Admin' : role === 'EMPLOYEE' ? 'Staff Employee' : 'Public Visitor'}
+    <header className="no-print bg-[#071522] border-b border-tgb-navyborder text-xs py-1.5 px-4 z-50 sticky top-0 shadow-sm">
+      <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+        {/* Left: Brand & Authenticated User Status */}
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span className="text-[11px] font-bold text-gray-200 tracking-wider uppercase">
+              Texas Gold Buyers <span className="text-tgb-gold font-normal">• Secure Portal</span>
             </span>
-            )
-          </span>
-        </div>
-
-        {/* Right: Quick Action Controls */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center bg-tgb-darknavy/80 rounded-md p-0.5 border border-tgb-navyborder">
-            <button
-              onClick={() => switchRole('SUPER_ADMIN')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded transition-colors text-[11px] ${
-                role === 'SUPER_ADMIN'
-                  ? 'bg-tgb-gold text-tgb-darknavy font-bold shadow-sm'
-                  : 'text-gray-300 hover:text-white hover:bg-tgb-navylight'
-              }`}
-              title="Switch to Super Admin (admin@texasgoldbuyers.com)"
-            >
-              <Shield className="w-3 h-3" />
-              Admin
-            </button>
-            <button
-              onClick={() => switchRole('EMPLOYEE')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded transition-colors text-[11px] ${
-                role === 'EMPLOYEE'
-                  ? 'bg-emerald-500 text-tgb-darknavy font-bold shadow-sm'
-                  : 'text-gray-300 hover:text-white hover:bg-tgb-navylight'
-              }`}
-              title="Switch to Employee (employee@texasgoldbuyers.com)"
-            >
-              <UserCheck className="w-3 h-3" />
-              Employee
-            </button>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <Link
-              href="/"
-              className="px-2 py-1 text-gray-300 hover:text-tgb-gold transition-colors flex items-center gap-1 text-[11px] rounded hover:bg-tgb-navylight/60"
+          <span className="hidden md:inline text-gray-600">|</span>
+
+          <div className="hidden md:flex items-center gap-1.5 text-[11px] text-gray-300">
+            <span>Signed in as:</span>
+            <strong className="text-white font-semibold">{user.name}</strong>
+            <span
+              className={`px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider ${
+                role === 'SUPER_ADMIN'
+                  ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                  : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+              }`}
             >
-              Public Site
-            </Link>
-            <Link
-              href="/portal/dashboard"
-              className="px-2 py-1 text-tgb-gold hover:text-white transition-colors flex items-center gap-1 text-[11px] rounded hover:bg-tgb-navylight/60 font-semibold"
-            >
-              Portal Suite <ExternalLink className="w-2.5 h-2.5" />
-            </Link>
+              {role === 'SUPER_ADMIN' ? 'Super Admin' : 'Staff Appraiser'}
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Portal Controls */}
+        <div className="flex items-center gap-3">
+          {/* If Super Admin, show role view toggle */}
+          {user.role === 'SUPER_ADMIN' && (
+            <div className="flex items-center bg-tgb-darknavy rounded-lg p-0.5 border border-tgb-navyborder text-[10px]">
+              <button
+                onClick={() => switchRole('SUPER_ADMIN')}
+                className={`px-2 py-0.5 rounded font-bold transition-all ${
+                  role === 'SUPER_ADMIN'
+                    ? 'bg-tgb-gold text-tgb-darknavy shadow-xs'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Executive Suite Access"
+              >
+                Executive
+              </button>
+              <button
+                onClick={() => switchRole('EMPLOYEE')}
+                className={`px-2 py-0.5 rounded font-bold transition-all ${
+                  role === 'EMPLOYEE'
+                    ? 'bg-emerald-500 text-tgb-darknavy shadow-xs'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Counter POS Access"
+              >
+                Counter POS
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 text-[11px]">
+            {isPortal ? (
+              <Link
+                href="/"
+                className="text-gray-400 hover:text-tgb-gold transition-colors flex items-center gap-1"
+              >
+                <span>Public Site</span>
+                <ExternalLink className="w-3 h-3" />
+              </Link>
+            ) : (
+              <Link
+                href="/portal/dashboard"
+                className="text-tgb-gold hover:text-tgb-goldlight font-bold transition-colors flex items-center gap-1"
+              >
+                <span>Enter Portal</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            )}
+
             <button
-              onClick={() => {
-                if (confirm('Reset demo database to fresh 350+ historical transactions and customer records?')) {
-                  resetDemoDatabase();
-                }
-              }}
-              className="p-1 text-gray-400 hover:text-amber-300 transition-colors rounded hover:bg-tgb-navylight/60"
-              title="Reset Demo Records (350+ Transactions 2024-2026)"
+              onClick={() => logout()}
+              className="text-gray-400 hover:text-rose-400 transition-colors flex items-center gap-1 ml-1"
+              title="Sign Out"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <LogOut className="w-3 h-3" />
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 
