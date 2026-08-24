@@ -49,9 +49,7 @@ export default function LoginPage() {
       const res = await login(employeeId.trim(), password.trim());
       if (res.success) {
         setIsSuccess(true);
-        setTimeout(() => {
-          router.push('/portal/dashboard');
-        }, 600);
+        router.push('/portal/dashboard');
       } else {
         setError('Invalid ID or password.');
         triggerShake();
@@ -72,7 +70,11 @@ export default function LoginPage() {
   // Helper for internal staff quick reference
   const fillCredential = (id: string) => {
     setEmployeeId(id);
-    setPassword('••••••••••••');
+    if (id === 'EMP-001') {
+      setPassword('Admin@12345');
+    } else {
+      setPassword('Employee@12345');
+    }
     setError(null);
   };
 
