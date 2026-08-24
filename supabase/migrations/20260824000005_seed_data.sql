@@ -28,19 +28,19 @@ ON CONFLICT (email) DO UPDATE SET
   role = EXCLUDED.role,
   status = EXCLUDED.status;
 
--- 3. SEED PREDEFINED CATALOG MENU
+-- 3. SEED PREDEFINED CATALOG MENU (Valid UUIDs with valid hex characters)
 INSERT INTO public.items (id, item_code, name, category, material, default_purity, typical_unit, est_price_per_unit, description)
 VALUES
-  ('i1000000-0000-0000-0000-000000000001', 'CAT-001', '10K Gold Scrap Jewelry', 'Gold', '10K Yellow/White Gold', '10K (41.7%)', 'g', 34.00, 'Assorted broken chains, rings, and mountings'),
-  ('i1000000-0000-0000-0000-000000000002', 'CAT-002', '14K Gold Estate Jewelry', 'Gold', '14K Gold Alloy', '14K (58.5%)', 'g', 48.00, 'Hallmarked 14k chains, rings, bracelets'),
-  ('i1000000-0000-0000-0000-000000000003', 'CAT-003', '18K Gold Fine Jewelry', 'Gold', '18K Gold Alloy', '18K (75.0%)', 'g', 62.00, 'High-end European and luxury designer gold'),
-  ('i1000000-0000-0000-0000-000000000004', 'CAT-004', '22K / 24K Pure Gold Bullion', 'Gold', '24K Pure Gold', '24K (99.9%)', 'g', 81.00, 'Investment-grade bars and mint bullion'),
-  ('i1000000-0000-0000-0000-000000000005', 'CAT-005', '999 Fine Silver Bar (10 oz)', 'Silver', '999 Fine Silver', '.999 Fine', 'oz', 29.50, 'Mint struck 10 troy ounce silver bar'),
-  ('i1000000-0000-0000-0000-000000000006', 'CAT-006', 'Sterling Silver Flatware (.925)', 'Silver', 'Sterling Silver', '.925 Sterling', 'g', 0.85, 'Solid sterling tableware and tea sets'),
-  ('i1000000-0000-0000-0000-000000000007', 'CAT-007', 'Platinum Ring / Ingot (950)', 'Platinum', '950 Platinum', 'PT950 (95.0%)', 'g', 32.00, 'Platinum mountings and minted ingots'),
-  ('i1000000-0000-0000-0000-000000000008', 'CAT-008', '1.00 Carat Round Brilliant Diamond', 'Diamond', 'Natural Diamond', 'VS2 / F Color', 'ct', 3200.00, 'Certified natural loose diamond'),
-  ('i1000000-0000-0000-0000-000000000009', 'CAT-009', 'Rolex Submariner Date (116610LN)', 'Watches', 'Stainless Steel / Ceramic', 'Authentic Swiss', 'pcs', 10500.00, 'Pre-owned luxury timepiece with box & papers'),
-  ('i1000000-0000-0000-0000-000000000010', 'CAT-010', 'US Gold Eagle $50 Coin (1 oz)', 'Coins & Currency', '22K Coin Gold', '22K (91.67%)', 'oz', 2530.00, 'US Mint uncirculated legal tender gold bullion coin')
+  ('a1000000-0000-0000-0000-000000000001', 'CAT-001', '10K Gold Scrap Jewelry', 'Gold', '10K Yellow/White Gold', '10K (41.7%)', 'g', 34.00, 'Assorted broken chains, rings, and mountings'),
+  ('a1000000-0000-0000-0000-000000000002', 'CAT-002', '14K Gold Estate Jewelry', 'Gold', '14K Gold Alloy', '14K (58.5%)', 'g', 48.00, 'Hallmarked 14k chains, rings, bracelets'),
+  ('a1000000-0000-0000-0000-000000000003', 'CAT-003', '18K Gold Fine Jewelry', 'Gold', '18K Gold Alloy', '18K (75.0%)', 'g', 62.00, 'High-end European and luxury designer gold'),
+  ('a1000000-0000-0000-0000-000000000004', 'CAT-004', '22K / 24K Pure Gold Bullion', 'Gold', '24K Pure Gold', '24K (99.9%)', 'g', 81.00, 'Investment-grade bars and mint bullion'),
+  ('a1000000-0000-0000-0000-000000000005', 'CAT-005', '999 Fine Silver Bar (10 oz)', 'Silver', '999 Fine Silver', '.999 Fine', 'oz', 29.50, 'Mint struck 10 troy ounce silver bar'),
+  ('a1000000-0000-0000-0000-000000000006', 'CAT-006', 'Sterling Silver Flatware (.925)', 'Silver', 'Sterling Silver', '.925 Sterling', 'g', 0.85, 'Solid sterling tableware and tea sets'),
+  ('a1000000-0000-0000-0000-000000000007', 'CAT-007', 'Platinum Ring / Ingot (950)', 'Platinum', '950 Platinum', 'PT950 (95.0%)', 'g', 32.00, 'Platinum mountings and minted ingots'),
+  ('a1000000-0000-0000-0000-000000000008', 'CAT-008', '1.00 Carat Round Brilliant Diamond', 'Diamond', 'Natural Diamond', 'VS2 / F Color', 'ct', 3200.00, 'Certified natural loose diamond'),
+  ('a1000000-0000-0000-0000-000000000009', 'CAT-009', 'Rolex Submariner Date (116610LN)', 'Watches', 'Stainless Steel / Ceramic', 'Authentic Swiss', 'pcs', 10500.00, 'Pre-owned luxury timepiece with box & papers'),
+  ('a1000000-0000-0000-0000-000000000010', 'CAT-010', 'US Gold Eagle $50 Coin (1 oz)', 'Coins & Currency', '22K Coin Gold', '22K (91.67%)', 'oz', 2530.00, 'US Mint uncirculated legal tender gold bullion coin')
 ON CONFLICT (item_code) DO UPDATE SET
   name = EXCLUDED.name,
   est_price_per_unit = EXCLUDED.est_price_per_unit;
