@@ -1,10 +1,11 @@
 import React from 'react';
+import Image from 'next/image';
 
 interface LogoProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   variant?: 'full' | 'icon-only' | 'stacked';
-  theme?: 'dark' | 'light'; // dark background (default) or light background
+  theme?: 'dark' | 'light';
 }
 
 export const TexasGoldBuyersLogo: React.FC<LogoProps> = ({
@@ -13,51 +14,33 @@ export const TexasGoldBuyersLogo: React.FC<LogoProps> = ({
   variant = 'full',
   theme = 'dark',
 }) => {
-  // Dimensions
-  const heightMap = {
-    sm: 32,
+  const sizeMap = {
+    sm: 36,
     md: 48,
-    lg: 64,
-    xl: 84,
+    lg: 72,
+    xl: 96,
   };
 
-  const currentHeight = heightMap[size];
+  const dim = sizeMap[size];
 
-  // Star Icon SVG
-  const StarIcon = (
-    <svg
-      viewBox="0 0 100 100"
-      className="shrink-0 drop-shadow-sm"
-      style={{ height: currentHeight, width: currentHeight }}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+  const EmblemImage = (
+    <div
+      className="relative shrink-0 rounded-full overflow-hidden shadow-lg border border-tgb-gold/30 bg-black flex items-center justify-center"
+      style={{ width: dim, height: dim }}
     >
-      {/* 5-pointed Gold Star */}
-      <polygon
-        points="50,6 64,36 97,38 72,61 79,94 50,76 21,94 28,61 3,38 36,36"
-        fill="#C99A3E"
-        stroke="#E2BD69"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
+      <Image
+        src="/brand/texas-gold-buyers-logo.png"
+        alt="Texas Gold Buyers Official Logo"
+        width={dim}
+        height={dim}
+        className="object-cover w-full h-full"
+        priority
       />
-      {/* Subtle Star Facet Gradient overlay */}
-      <polygon
-        points="50,6 64,36 50,76"
-        fill="#E2BD69"
-        opacity="0.25"
-      />
-      {/* T Inset */}
-      <g fill={theme === 'dark' ? '#071522' : '#071522'}>
-        {/* Top bar of T */}
-        <rect x="34" y="32" width="32" height="7.5" rx="1" />
-        {/* Stem of T */}
-        <rect x="44.5" y="38" width="11" height="28" rx="1" />
-      </g>
-    </svg>
+    </div>
   );
 
   if (variant === 'icon-only') {
-    return <div className={`inline-flex items-center ${className}`}>{StarIcon}</div>;
+    return <div className={`inline-flex items-center ${className}`}>{EmblemImage}</div>;
   }
 
   const textColorTexas = theme === 'dark' ? 'text-white' : 'text-tgb-darknavy';
@@ -66,19 +49,22 @@ export const TexasGoldBuyersLogo: React.FC<LogoProps> = ({
   if (variant === 'stacked') {
     return (
       <div className={`inline-flex flex-col items-center select-none ${className}`}>
-        {StarIcon}
+        {EmblemImage}
         <div className="mt-2 text-center">
           <span
             className={`font-black tracking-[0.22em] uppercase leading-none block font-sans ${textColorTexas}`}
-            style={{ fontSize: currentHeight * 0.45 }}
+            style={{ fontSize: dim * 0.42 }}
           >
             TEXAS
           </span>
           <span
-            className="font-bold tracking-[0.32em] uppercase leading-tight block font-sans"
-            style={{ color: textColorGold, fontSize: currentHeight * 0.26 }}
+            className="font-bold tracking-[0.28em] uppercase leading-tight block font-sans mt-0.5"
+            style={{ color: textColorGold, fontSize: dim * 0.22 }}
           >
             GOLD BUYERS
+          </span>
+          <span className="text-[9px] uppercase tracking-[0.2em] text-gray-400 font-semibold block mt-0.5">
+            TEXAN OWNED & OPERATED
           </span>
         </div>
       </div>
@@ -86,20 +72,23 @@ export const TexasGoldBuyersLogo: React.FC<LogoProps> = ({
   }
 
   return (
-    <div className={`inline-flex items-center gap-3.5 select-none ${className}`}>
-      {StarIcon}
+    <div className={`inline-flex items-center gap-3 select-none ${className}`}>
+      {EmblemImage}
       <div className="flex flex-col justify-center">
         <span
-          className={`font-black tracking-[0.22em] uppercase leading-none font-sans ${textColorTexas}`}
-          style={{ fontSize: currentHeight * 0.46 }}
+          className={`font-black tracking-[0.2em] uppercase leading-none font-sans ${textColorTexas}`}
+          style={{ fontSize: Math.max(16, dim * 0.4) }}
         >
           TEXAS
         </span>
         <span
-          className="font-bold tracking-[0.34em] uppercase leading-tight font-sans mt-1"
-          style={{ color: textColorGold, fontSize: currentHeight * 0.26 }}
+          className="font-bold tracking-[0.28em] uppercase leading-tight font-sans mt-0.5"
+          style={{ color: textColorGold, fontSize: Math.max(11, dim * 0.24) }}
         >
           GOLD BUYERS
+        </span>
+        <span className="text-[8px] sm:text-[9px] uppercase tracking-[0.16em] text-gray-400 font-semibold mt-0.5">
+          Texan Owned & Operated
         </span>
       </div>
     </div>

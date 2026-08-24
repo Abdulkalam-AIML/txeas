@@ -98,7 +98,7 @@ export default function EmployeeDashboardPage() {
             </h1>
             <div className="text-xs text-gray-400 flex items-center gap-2">
               <Building className="w-3.5 h-3.5 text-tgb-gold" />
-              <span>{user?.locationName || 'Dallas Flagship — Uptown'}</span>
+              <span>2427 W Mockingbird Ln, Dallas, TX 75235</span>
             </div>
           </div>
 
@@ -320,67 +320,49 @@ export default function EmployeeDashboardPage() {
             </div>
 
             <form onSubmit={handleCreateCustomer} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newCustomerForm.fullName}
-                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, fullName: e.target.value })}
-                    placeholder="Customer Name"
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Phone *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={newCustomerForm.mobileNumber}
-                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, mobileNumber: e.target.value })}
-                    placeholder="(214) 555-0100"
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">ID Type *</label>
-                  <select
-                    value={newCustomerForm.idType}
-                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, idType: e.target.value as any })}
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  >
-                    <option value="Drivers License">Driver's License (Texas/Other)</option>
-                    <option value="Passport">Passport</option>
-                    <option value="State ID">State ID</option>
-                    <option value="Military ID">Military ID</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">ID Number *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newCustomerForm.idNumber}
-                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, idNumber: e.target.value })}
-                    placeholder="TX-DL-12345678"
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Address *</label>
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Full Legal Name *</label>
                 <input
                   type="text"
                   required
-                  value={newCustomerForm.address}
-                  onChange={(e) => setNewCustomerForm({ ...newCustomerForm, address: e.target.value })}
-                  placeholder="Street Address, City, State, Zip"
+                  value={newCustomerForm.fullName}
+                  onChange={(e) => setNewCustomerForm({ ...newCustomerForm, fullName: e.target.value })}
+                  placeholder="e.g. John Smith"
                   className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Mobile Phone *</label>
+                <input
+                  type="tel"
+                  required
+                  value={newCustomerForm.mobileNumber}
+                  onChange={(e) => setNewCustomerForm({ ...newCustomerForm, mobileNumber: e.target.value })}
+                  placeholder="(469) 555-0100"
+                  className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={newCustomerForm.email}
+                  onChange={(e) => setNewCustomerForm({ ...newCustomerForm, email: e.target.value })}
+                  placeholder="customer@email.com"
+                  className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Driver&apos;s License (Optional)</label>
+                <input
+                  type="text"
+                  value={newCustomerForm.idNumber}
+                  onChange={(e) => setNewCustomerForm({ ...newCustomerForm, idNumber: e.target.value })}
+                  placeholder="TX-DL-8492019"
+                  className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
                 />
               </div>
 
@@ -388,15 +370,15 @@ export default function EmployeeDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setNewCustomerModalOpen(false)}
-                  className="px-4 py-2 text-xs text-gray-400 hover:text-white"
+                  className="px-4 py-2 text-xs text-gray-400 hover:text-white cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-tgb-gold text-tgb-darknavy font-bold text-xs rounded-lg uppercase"
+                  className="px-5 py-2 bg-tgb-gold hover:bg-tgb-goldlight text-tgb-darknavy font-bold text-xs rounded-lg uppercase cursor-pointer"
                 >
-                  Register Customer
+                  Save Customer
                 </button>
               </div>
             </form>

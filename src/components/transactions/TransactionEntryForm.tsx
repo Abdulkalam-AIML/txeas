@@ -23,15 +23,9 @@ import {
   Plus,
   Trash2,
   Upload,
-  Image as ImageIcon,
-  Camera,
   Search,
   UserPlus,
   CheckCircle2,
-  DollarSign,
-  Receipt,
-  Scale,
-  Sparkles,
   ArrowDownLeft,
   ArrowUpRight,
   Shield,
@@ -41,6 +35,14 @@ import {
   X,
   Printer,
   History,
+  Scale,
+  Sparkles,
+  DollarSign,
+  TrendingUp,
+  Percent,
+  Check,
+  ChevronDown,
+  Info,
 } from 'lucide-react';
 import InvoiceViewModal from '@/components/invoices/InvoiceViewModal';
 
@@ -54,234 +56,185 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
   const router = useRouter();
   const { user } = useAuth();
 
-  // Transaction Header State
+  // Mode: BUY (from customer) vs SELL (to customer)
   const [txType, setTxType] = useState<TransactionType>(initialType);
-  const [txDate, setTxDate] = useState<string>(new Date().toISOString().slice(0, 16));
-  const [notes, setNotes] = useState('');
 
-  // Customer Selection State
+  // Customer State
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [customerSearchDropdownOpen, setCustomerSearchDropdownOpen] = useState(false);
-  const [newCustomerModalOpen, setNewCustomerModalOpen] = useState(false);
-
-  // New Customer Form State
-  const [newCustomerForm, setNewCustomerForm] = useState({
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
     fullName: '',
-    mobileNumber: '',
+    phone: '',
     email: '',
-    address: '',
-    city: 'Dallas',
-    state: 'TX',
-    zipCode: '75201',
-    idType: 'Drivers License' as const,
-    idNumber: '',
-    notes: '',
+    driversLicense: '',
   });
 
-  // Predefined Menu Catalog
-  const [menuItems, setMenuItems] = useState<PredefinedMenuItem[]>([]);
+  // BUY Mode Specific Calculation State
+  const [buyItemName, setBuyItemName] = useState('14K Gold Scrap / Estate');
+  const [buyCategory, setBuyCategory] = useState<MetalCategory>('Gold');
+  const [buyWeight, setBuyWeight] = useState<number>(4.0);
+  const [buyRate, setBuyRate] = useState<number>(60.0);
+  const [buyCustomerPayout, setBuyCustomerPayout] = useState<number>(140.0);
+  const [buyAdjustmentType, setBuyAdjustmentType] = useState<'none' | 'fixed' | 'percent'>('none');
+  const [buyAdjustmentValue, setBuyAdjustmentValue] = useState<number>(0);
 
-  // Transaction Items (Starts with 1 item, supports unlimited items)
-  const [items, setItems] = useState<TransactionItem[]>([
-    {
-      id: `ITEM-INIT-${Date.now()}`,
-      isCustom: false,
-      category: 'Gold',
-      name: 'Gold Ring',
-      description: 'Standard XRF assayed gold piece.',
-      material: '14K Yellow Gold',
-      purity: '14K (58.5%)',
-      weight: 12.5,
-      unit: 'g',
-      quantity: 1,
-      estimatedMarketValue: 650.0,
-      offeredUnitPrice: 52.0,
-      totalPrice: 650.0,
-      images: [],
-    },
-  ]);
+  // SELL Mode Specific Calculation State
+  const [sellItemName, setSellItemName] = useState('14K Gold Chain / Bullion');
+  const [sellCategory, setSellCategory] = useState<MetalCategory>('Gold');
+  const [sellWeight, setSellWeight] = useState<number>(4.0);
+  const [sellBasePrice, setSellBasePrice] = useState<number>(250.0);
+  const [sellAdditionalChargePercent, setSellAdditionalChargePercent] = useState<number>(50.0);
+  const [sellTaxRatePercent, setSellTaxRatePercent] = useState<number>(8.5);
 
-  // Payment Details State
+  // Payment Details
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
-  const [discountOrAdjustment, setDiscountOrAdjustment] = useState<number>(0);
+  const [paymentNotes, setPaymentNotes] = useState('');
   const [cardLast4, setCardLast4] = useState('');
-  const [cardType, setCardType] = useState<'Visa' | 'Mastercard' | 'Amex' | 'Discover'>('Visa');
   const [chequeNumber, setChequeNumber] = useState('');
   const [bankName, setBankName] = useState('');
-  const [paymentNotes, setPaymentNotes] = useState('');
 
   // UI state
   const [isSaving, setIsSaving] = useState(false);
   const [savedTransaction, setSavedTransaction] = useState<Transaction | null>(null);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [isCompletedSuccess, setIsCompletedSuccess] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Load initial customers & menu
+  // Load initial customers
   useEffect(() => {
     customerService.getAll().then((data) => {
       setCustomers(data);
-      if (data.length > 0) setSelectedCustomer(data[0]);
+      if (data.length > 0 && !selectedCustomer) {
+        setSelectedCustomer(data[0]);
+      }
     });
-    itemService.getPredefinedMenu().then(setMenuItems);
   }, []);
 
-  // Filtered customer search
+  // Filtered customer search list
   const filteredCustomers = customerSearchQuery.trim()
     ? customers.filter(
         (c) =>
           c.fullName.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
           c.mobileNumber.includes(customerSearchQuery) ||
-          c.id.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+          c.email.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
           c.idNumber.toLowerCase().includes(customerSearchQuery.toLowerCase())
       )
-    : customers.slice(0, 10);
-
-  // Handle adding an item
-  const handleAddItem = (isCustom = false) => {
-    const newItem: TransactionItem = {
-      id: `ITEM-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      isCustom,
-      category: 'Gold',
-      name: isCustom ? 'Custom Gold / Estate Item' : 'Gold Chain',
-      description: 'Assayed at counter with XRF Spectrometer.',
-      material: '14K Yellow Gold',
-      purity: '14K (58.5%)',
-      weight: 15.0,
-      unit: 'g',
-      quantity: 1,
-      estimatedMarketValue: 780.0,
-      offeredUnitPrice: 52.0,
-      totalPrice: 780.0,
-      images: [],
-    };
-    setItems([...items, newItem]);
-  };
-
-  // Handle removing an item
-  const handleRemoveItem = (index: number) => {
-    if (items.length <= 1) {
-      alert('A transaction must contain at least one item.');
-      return;
-    }
-    const updated = [...items];
-    updated.splice(index, 1);
-    setItems(updated);
-  };
-
-  // Handle item change
-  const handleItemFieldChange = (index: number, fields: Partial<TransactionItem>) => {
-    const updated = [...items];
-    const item = { ...updated[index], ...fields };
-
-    // Auto-calculate total price
-    const unitPrice = Number(item.offeredUnitPrice) || 0;
-    const qty = Number(item.quantity) || 1;
-    const weight = Number(item.weight) || 1;
-
-    let computedTotal = 0;
-    if (item.unit === 'g' || item.unit === 'oz' || item.unit === 'dwt' || item.unit === 'ct') {
-      computedTotal = +(qty * unitPrice * weight).toFixed(2);
-    } else {
-      computedTotal = +(qty * unitPrice).toFixed(2);
-    }
-
-    item.totalPrice = computedTotal;
-    item.estimatedMarketValue = +(computedTotal * 1.12).toFixed(2);
-    updated[index] = item;
-    setItems(updated);
-  };
-
-  // Handle selecting a predefined item from the menu
-  const handleSelectPredefinedMenu = (index: number, menuItemId: string) => {
-    const selected = menuItems.find((m) => m.id === menuItemId);
-    if (!selected) return;
-
-    handleItemFieldChange(index, {
-      isCustom: false,
-      category: selected.category,
-      name: selected.name,
-      material: selected.defaultMaterial,
-      purity: selected.defaultPurity,
-      unit: selected.typicalUnit,
-      offeredUnitPrice: selected.estPricePerUnit || 50,
-      description: `Catalog standard: ${selected.name}`,
-    });
-  };
-
-  // Handle file / camera image upload for an item
-  const handleImageUpload = async (itemIndex: number, e: React.ChangeEvent<HTMLInputElement>, tag: ItemImage['tag'] = 'General') => {
-    if (!e.target.files || e.target.files.length === 0) return;
-
-    const files = Array.from(e.target.files);
-    try {
-      const uploadedImages: ItemImage[] = [];
-      for (const file of files) {
-        const img = await fileService.processUploadedFile(file, tag);
-        uploadedImages.push(img);
-      }
-
-      const updated = [...items];
-      updated[itemIndex].images = [...updated[itemIndex].images, ...uploadedImages];
-      setItems(updated);
-    } catch (err: any) {
-      alert(err.message || 'Image upload failed');
-    }
-  };
-
-  // Handle removing an image from an item
-  const handleRemoveImage = (itemIndex: number, imageId: string) => {
-    const updated = [...items];
-    updated[itemIndex].images = updated[itemIndex].images.filter((img) => img.id !== imageId);
-    setItems(updated);
-  };
-
-  // Financial Calculations
-  const subtotal = +items.reduce((acc, i) => acc + (Number(i.totalPrice) || 0), 0).toFixed(2);
-  const taxRatePercent = txType === 'SELL' ? 8.25 : 0; // In Texas, selling retail has 8.25% sales tax; buying scrap is 0%
-  const taxableAmount = Math.max(0, subtotal + Number(discountOrAdjustment));
-  const taxAmount = +(txType === 'SELL' ? taxableAmount * (taxRatePercent / 100) : 0).toFixed(2);
-  const finalTotal = +(taxableAmount + taxAmount).toFixed(2);
+    : customers.slice(0, 5);
 
   // Quick Customer Creation
-  const handleCreateCustomerSubmit = async (e: React.FormEvent) => {
+  const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newCustomer.fullName.trim() || !newCustomer.phone.trim()) {
+      alert('Please enter customer full name and phone number.');
+      return;
+    }
+
     try {
-      const created = await customerService.create(newCustomerForm);
-      setCustomers([created, ...customers]);
-      setSelectedCustomer(created);
-      setNewCustomerModalOpen(false);
-      setNewCustomerForm({
-        fullName: '',
-        mobileNumber: '',
-        email: '',
-        address: '',
+      const created = await customerService.create({
+        fullName: newCustomer.fullName.trim(),
+        mobileNumber: newCustomer.phone.trim(),
+        email: newCustomer.email.trim(),
+        address: '2427 W Mockingbird Ln',
         city: 'Dallas',
         state: 'TX',
-        zipCode: '75201',
+        zipCode: '75235',
         idType: 'Drivers License',
-        idNumber: '',
-        notes: '',
+        idNumber: newCustomer.driversLicense.trim() || 'N/A',
       });
+
+      setCustomers([created, ...customers]);
+      setSelectedCustomer(created);
+      setCustomerModalOpen(false);
+      setNewCustomer({ fullName: '', phone: '', email: '', driversLicense: '' });
     } catch (err: any) {
-      alert(err.message || 'Could not register customer');
+      alert(err.message || 'Failed to save customer');
     }
   };
 
-  // Save Transaction
+  // BUY Calculations
+  const buyMarketValue = +(Math.max(0, buyWeight) * Math.max(0, buyRate)).toFixed(2);
+  let buyAdjustmentAmount = 0;
+  if (buyAdjustmentType === 'percent') {
+    buyAdjustmentAmount = +(buyCustomerPayout * (buyAdjustmentValue / 100)).toFixed(2);
+  } else if (buyAdjustmentType === 'fixed') {
+    buyAdjustmentAmount = +buyAdjustmentValue;
+  }
+  const finalBuyPayout = +(Math.max(0, buyCustomerPayout + buyAdjustmentAmount)).toFixed(2);
+  const buyGrossMargin = +(buyMarketValue - finalBuyPayout).toFixed(2);
+  const buyMarginPercent = buyMarketValue > 0 ? +((buyGrossMargin / buyMarketValue) * 100).toFixed(2) : 0;
+
+  // SELL Calculations
+  const sellAdditionalChargeAmount = +(Math.max(0, sellBasePrice) * (Math.max(0, sellAdditionalChargePercent) / 100)).toFixed(2);
+  const sellSubtotal = +(Math.max(0, sellBasePrice) + sellAdditionalChargeAmount).toFixed(2);
+  const sellTaxAmount = +(sellSubtotal * (Math.max(0, sellTaxRatePercent) / 100)).toFixed(2);
+  const finalSellTotal = +(sellSubtotal + sellTaxAmount).toFixed(2);
+
+  // Submit Transaction
   const handleSaveTransaction = async () => {
     if (!selectedCustomer) {
-      alert('Please select or create a customer before saving.');
-      return;
-    }
-    if (items.length === 0) {
-      alert('Please add at least one item.');
+      alert('Please select or create a customer first.');
       return;
     }
 
     setIsSaving(true);
     try {
+      let txItem: TransactionItem;
+      let subtotalAmount = 0;
+      let finalTotalAmount = 0;
+      let taxAmountVal = 0;
+      let taxRateVal = 0;
+      let adjustmentVal = 0;
+
+      if (txType === 'BUY') {
+        subtotalAmount = buyMarketValue;
+        finalTotalAmount = finalBuyPayout;
+        adjustmentVal = buyAdjustmentAmount;
+        taxAmountVal = 0;
+        taxRateVal = 0;
+
+        txItem = {
+          id: `ITEM-${Date.now()}`,
+          isCustom: true,
+          category: buyCategory,
+          name: buyItemName,
+          description: `Assayed weight: ${buyWeight}g @ $${buyRate}/g market benchmark. Customer Payout: $${finalBuyPayout}. Gross Margin: $${buyGrossMargin} (${buyMarginPercent}%).`,
+          material: 'Assayed Gold Alloy',
+          purity: 'Standard Assay',
+          weight: buyWeight,
+          unit: 'g',
+          quantity: 1,
+          estimatedMarketValue: buyMarketValue,
+          offeredUnitPrice: buyWeight > 0 ? +(finalBuyPayout / buyWeight).toFixed(2) : finalBuyPayout,
+          totalPrice: finalBuyPayout,
+          images: [],
+        };
+      } else {
+        subtotalAmount = sellSubtotal;
+        finalTotalAmount = finalSellTotal;
+        taxAmountVal = sellTaxAmount;
+        taxRateVal = sellTaxRatePercent;
+        adjustmentVal = sellAdditionalChargeAmount;
+
+        txItem = {
+          id: `ITEM-${Date.now()}`,
+          isCustom: true,
+          category: sellCategory,
+          name: sellItemName,
+          description: `Base Price: $${sellBasePrice} + Additional Charge (${sellAdditionalChargePercent}%: $${sellAdditionalChargeAmount}) + Sales Tax (${sellTaxRatePercent}%: $${sellTaxAmount}).`,
+          material: 'Precious Metals Inventory',
+          purity: 'Minted / Certified',
+          weight: sellWeight,
+          unit: 'g',
+          quantity: 1,
+          estimatedMarketValue: sellBasePrice,
+          offeredUnitPrice: sellSubtotal,
+          totalPrice: sellSubtotal,
+          images: [],
+        };
+      }
+
       const newTx = await transactionService.create({
         type: txType,
         customerId: selectedCustomer.id,
@@ -289,67 +242,66 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
         customerPhone: selectedCustomer.mobileNumber,
         customerEmail: selectedCustomer.email,
         customerAddress: selectedCustomer.address,
-        employeeId: user?.id || 'USR-001',
-        employeeName: user?.name || 'Staff Employee',
-        locationId: user?.locationId || 'LOC-01',
+        employeeId: user?.id || 'e1000000-0000-0000-0000-000000000001',
+        employeeName: user?.name || 'Alexander Sterling',
+        locationId: user?.locationId || 'c1000000-0000-0000-0000-000000000001',
         locationName: user?.locationName || 'Dallas Flagship — Uptown',
-        transactionDate: new Date(txDate).toISOString(),
+        transactionDate: new Date().toISOString(),
         status: 'COMPLETED',
-        items,
-        subtotal,
-        discountOrAdjustment: Number(discountOrAdjustment),
-        taxRatePercent,
-        taxAmount,
-        finalTotal,
+        items: [txItem],
+        subtotal: subtotalAmount,
+        discountOrAdjustment: adjustmentVal,
+        taxRatePercent: taxRateVal,
+        taxAmount: taxAmountVal,
+        finalTotal: finalTotalAmount,
         payment: {
           method: paymentMethod,
-          amount: finalTotal,
+          amount: finalTotalAmount,
           status: 'COMPLETED',
           referenceNumber: `REF-${Date.now().toString().slice(-6)}`,
           paidAt: new Date().toISOString(),
           cardLast4: paymentMethod === 'CARD' ? cardLast4 || '4242' : undefined,
-          cardType: paymentMethod === 'CARD' ? cardType : undefined,
           chequeNumber: paymentMethod === 'CHEQUE' ? chequeNumber || '5001' : undefined,
           bankName: paymentMethod === 'CHEQUE' ? bankName || 'Chase Bank' : undefined,
           notes: paymentNotes,
         },
-        notes,
+        notes: paymentNotes,
         termsAccepted: true,
       });
 
       setSavedTransaction(newTx);
       setIsCompletedSuccess(true);
     } catch (err: any) {
-      alert(err.message || 'Failed to save transaction');
+      alert(err.message || 'Failed to complete transaction.');
     } finally {
       setIsSaving(false);
     }
   };
 
+  // SUCCESS COMPLETION SCREEN
   if (isCompletedSuccess && savedTransaction) {
     return (
       <div className="max-w-2xl mx-auto my-6 bg-[#0a1827] border border-tgb-gold/40 rounded-3xl p-8 sm:p-12 shadow-2xl text-center space-y-6 animate-fade-in">
-        {/* Gold Checkmark Success Ring Animation */}
         <div className="w-20 h-20 rounded-full bg-emerald-500/15 border-2 border-emerald-400 text-emerald-400 flex items-center justify-center mx-auto animate-pulse">
           <CheckCircle2 className="w-10 h-10" />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1">
           <span className="text-xs font-bold uppercase tracking-widest text-tgb-gold">
-            Official Record Saved & Audited
+            Official Texas Record Audited & Recorded
           </span>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
             TRANSACTION COMPLETED
           </h2>
           <p className="text-xs text-gray-400">
-            DPS compliance record registered and inventory updated.
+            Texas Gold Buyers • 2427 W Mockingbird Ln, Dallas, TX 75235
           </p>
         </div>
 
         {/* Transaction Summary Card */}
         <div className="bg-[#071320] border border-tgb-navyborder rounded-2xl p-6 text-left space-y-3 font-mono text-xs">
           <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2">
-            <span className="text-gray-400">Receipt / Tx #:</span>
+            <span className="text-gray-400">Receipt # / Invoice:</span>
             <span className="font-bold text-tgb-gold">{savedTransaction.invoiceNumber}</span>
           </div>
           <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2">
@@ -357,17 +309,25 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
             <span className="font-bold text-white">{savedTransaction.customerName}</span>
           </div>
           <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2">
-            <span className="text-gray-400">Order Type:</span>
+            <span className="text-gray-400">Transaction Type:</span>
             <span className={`font-bold ${savedTransaction.type === 'BUY' ? 'text-emerald-400' : 'text-amber-400'}`}>
-              {savedTransaction.type === 'BUY' ? 'BUY ORDER (Customer Payout)' : 'RETAIL SALE'}
+              {savedTransaction.type === 'BUY' ? 'BUY FROM CUSTOMER (Payout)' : 'SELL TO CUSTOMER (Retail)'}
             </span>
           </div>
           <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2">
-            <span className="text-gray-400">Total Amount:</span>
+            <span className="text-gray-400">{savedTransaction.type === 'BUY' ? 'Total Paid to Customer:' : 'Total Received from Customer:'}</span>
             <span className="font-bold text-xl text-white font-sans">
               ${savedTransaction.finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
           </div>
+          {savedTransaction.type === 'BUY' && (
+            <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2 text-emerald-400">
+              <span>Your Gross Margin (Internal):</span>
+              <span className="font-bold font-sans">
+                ${buyGrossMargin.toLocaleString(undefined, { minimumFractionDigits: 2 })} ({buyMarginPercent}%)
+              </span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-gray-400">Payment Method:</span>
             <span className="font-bold text-white">{savedTransaction.payment.method} ({savedTransaction.payment.status})</span>
@@ -402,26 +362,6 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
             onClick={() => {
               setIsCompletedSuccess(false);
               setSavedTransaction(null);
-              setSelectedCustomer(null);
-              setNotes('');
-              setItems([
-                {
-                  id: `ITEM-INIT-${Date.now()}`,
-                  isCustom: false,
-                  category: 'Gold',
-                  name: 'Gold Ring',
-                  description: 'Standard XRF assayed gold piece.',
-                  material: '14K Yellow Gold',
-                  purity: '14K (58.5%)',
-                  weight: 10,
-                  unit: 'g',
-                  quantity: 1,
-                  estimatedMarketValue: 520.0,
-                  offeredUnitPrice: 52.0,
-                  totalPrice: 520.0,
-                  images: [],
-                }
-              ]);
             }}
             className="py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-tgb-darknavy font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
           >
@@ -442,13 +382,13 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
   }
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Top Header & Mode Toggle */}
-      <div className="bg-tgb-navy border border-tgb-navyborder rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-4xl mx-auto pb-16">
+      {/* 1. TOP HEADER & MODE SWITCHER */}
+      <div className="bg-tgb-navy border border-tgb-navyborder rounded-3xl p-6 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span
-              className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm ${
+              className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
                 txType === 'BUY'
                   ? 'bg-emerald-500 text-tgb-darknavy'
                   : 'bg-amber-500 text-tgb-darknavy'
@@ -457,765 +397,547 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
               {txType === 'BUY' ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
               {txType === 'BUY' ? 'BUY FROM CUSTOMER' : 'SELL TO CUSTOMER'}
             </span>
-            <span className="text-xs text-gray-400 font-mono">TGB-2026-XXXXXX</span>
           </div>
           <h1 className="text-2xl font-bold text-white font-display mt-1">
-            {txType === 'BUY' ? 'New Precious Metals Buy Order' : 'New Retail Inventory Sale'}
+            {txType === 'BUY' ? 'Buy Gold & Precious Metals' : 'Sell Inventory to Customer'}
           </h1>
         </div>
 
-        {/* Buy vs Sell Switcher */}
-        <div className="flex bg-tgb-darknavy rounded-xl p-1 border border-tgb-navyborder shrink-0">
+        {/* Large Touch-Friendly Mode Switcher */}
+        <div className="flex bg-[#071320] rounded-2xl p-1.5 border border-tgb-navyborder shrink-0 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setTxType('BUY')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
               txType === 'BUY'
-                ? 'bg-emerald-500 text-tgb-darknavy shadow-md'
+                ? 'bg-emerald-500 text-tgb-darknavy shadow-lg'
                 : 'text-gray-300 hover:text-white'
             }`}
           >
-            <ArrowDownLeft className="w-4 h-4" /> BUY FROM CUSTOMER
+            <ArrowDownLeft className="w-4 h-4" /> BUY
           </button>
           <button
             type="button"
             onClick={() => setTxType('SELL')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
               txType === 'SELL'
-                ? 'bg-amber-500 text-tgb-darknavy shadow-md'
+                ? 'bg-amber-500 text-tgb-darknavy shadow-lg'
                 : 'text-gray-300 hover:text-white'
             }`}
           >
-            <ArrowUpRight className="w-4 h-4" /> SELL TO CUSTOMER
+            <ArrowUpRight className="w-4 h-4" /> SELL
           </button>
         </div>
       </div>
 
-      {/* SECTION 1: CUSTOMER SELECTION & INTAKE */}
-      <div className="bg-tgb-navy border border-tgb-navyborder rounded-2xl p-6 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-tgb-navyborder">
+      {/* 2. STEP 1: CUSTOMER SELECTION */}
+      <div className="bg-tgb-navy border border-tgb-navyborder rounded-3xl p-6 shadow-xl space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-tgb-navyborder">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-tgb-gold/15 text-tgb-gold flex items-center justify-center font-bold text-xs">
+            <span className="w-6 h-6 rounded-full bg-tgb-gold/20 text-tgb-gold text-xs font-bold flex items-center justify-center">
               1
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white font-display">Customer Identification</h2>
-              <p className="text-[11px] text-gray-400">Search existing records or create a new Texas DPS verified profile</p>
-            </div>
+            </span>
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+              Customer Information
+            </h2>
           </div>
-
           <button
             type="button"
-            onClick={() => setNewCustomerModalOpen(true)}
-            className="py-2 px-4 bg-tgb-gold/15 hover:bg-tgb-gold text-tgb-gold hover:text-tgb-darknavy border border-tgb-gold/40 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5"
+            onClick={() => setCustomerModalOpen(true)}
+            className="py-1.5 px-3 bg-tgb-gold/15 hover:bg-tgb-gold/25 border border-tgb-gold/30 text-tgb-gold font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-all"
           >
-            <UserPlus className="w-3.5 h-3.5" /> + New Customer Profile
+            <UserPlus className="w-3.5 h-3.5" /> + New Customer
           </button>
         </div>
 
-        {/* Customer Search Auto-Suggest Bar */}
-        <div className="relative">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-tgb-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={customerSearchQuery}
-                onFocus={() => setCustomerSearchDropdownOpen(true)}
-                onChange={(e) => {
-                  setCustomerSearchQuery(e.target.value);
-                  setCustomerSearchDropdownOpen(true);
-                }}
-                placeholder="Search customer by name, phone (214-555-...), ID, or driver's license..."
-                className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-xl pl-9 pr-4 py-2.5 text-white text-xs focus:outline-none focus:border-tgb-gold focus:ring-1 focus:ring-tgb-gold"
-              />
-            </div>
-          </div>
-
-          {/* Customer Dropdown Results */}
-          {customerSearchDropdownOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-tgb-darknavy border border-tgb-navyborder rounded-xl shadow-2xl z-40 max-h-60 overflow-y-auto p-1.5 space-y-1">
-              {filteredCustomers.length === 0 ? (
-                <div className="p-3 text-center text-xs text-gray-400">
-                  No matching customers found.{' '}
-                  <button
-                    onClick={() => {
-                      setCustomerSearchDropdownOpen(false);
-                      setNewCustomerModalOpen(true);
-                    }}
-                    className="text-tgb-gold font-bold hover:underline"
-                  >
-                    Create New Customer
-                  </button>
-                </div>
-              ) : (
-                filteredCustomers.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCustomer(c);
-                      setCustomerSearchDropdownOpen(false);
-                      setCustomerSearchQuery('');
-                    }}
-                    className="w-full text-left p-2.5 rounded-lg hover:bg-tgb-navy flex items-center justify-between transition-colors text-xs"
-                  >
-                    <div>
-                      <span className="font-bold text-white block">{c.fullName}</span>
-                      <span className="text-[11px] text-gray-400">
-                        {c.mobileNumber} • {c.idType}: {c.idNumber}
-                      </span>
-                    </div>
-                    <span className="text-[11px] font-mono text-tgb-gold font-bold">{c.id}</span>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Selected Customer Card */}
-        {selectedCustomer && (
-          <div className="bg-tgb-darknavy/90 border border-tgb-gold/30 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-1 text-xs">
+        {/* Selected Customer Card or Search */}
+        {selectedCustomer ? (
+          <div className="bg-[#071320] border border-tgb-gold/40 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="font-bold text-white text-sm">{selectedCustomer.fullName}</span>
-                <span className="font-mono text-[11px] text-tgb-gold bg-tgb-gold/10 px-2 py-0.5 rounded">
-                  {selectedCustomer.id}
+                <span className="font-bold text-white text-base">{selectedCustomer.fullName}</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 text-[10px] font-bold">
+                  ✓ Selected
                 </span>
               </div>
-              <div className="text-gray-300 text-[11px] space-x-3">
-                <span>Phone: <strong className="text-white font-mono">{selectedCustomer.mobileNumber}</strong></span>
-                <span>Email: <strong className="text-white">{selectedCustomer.email || 'N/A'}</strong></span>
-                <span>ID: <strong className="text-white">{selectedCustomer.idType} ({selectedCustomer.idNumber})</strong></span>
-              </div>
-              <div className="text-[11px] text-gray-400">
-                Address: {selectedCustomer.address}, {selectedCustomer.city}, {selectedCustomer.state} {selectedCustomer.zipCode}
+              <div className="text-xs text-gray-400 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                <span>📞 {selectedCustomer.mobileNumber}</span>
+                {selectedCustomer.email && <span>✉️ {selectedCustomer.email}</span>}
+                {selectedCustomer.idNumber && selectedCustomer.idNumber !== 'N/A' && (
+                  <span>🪪 DL: {selectedCustomer.idNumber}</span>
+                )}
               </div>
             </div>
-
             <button
               type="button"
               onClick={() => setSelectedCustomer(null)}
-              className="text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded-lg bg-tgb-navy border border-tgb-navyborder"
+              className="text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded-lg bg-tgb-navy border border-tgb-navyborder self-start sm:self-auto cursor-pointer"
             >
               Change Customer
             </button>
           </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search customer by name, phone number, or email..."
+                value={customerSearchQuery}
+                onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                className="w-full bg-[#071320] border border-tgb-navyborder focus:border-tgb-gold rounded-xl pl-10 pr-4 py-3 text-white text-xs sm:text-sm placeholder:text-gray-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              {filteredCustomers.map((cust) => (
+                <div
+                  key={cust.id}
+                  className="p-3 bg-[#071320] border border-tgb-navyborder hover:border-tgb-gold/40 rounded-xl flex items-center justify-between gap-2"
+                >
+                  <div className="truncate">
+                    <div className="font-bold text-white text-xs truncate">{cust.fullName}</div>
+                    <div className="text-[11px] text-gray-400">{cust.mobileNumber}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCustomer(cust)}
+                    className="py-1.5 px-3 bg-tgb-gold hover:bg-tgb-goldlight text-tgb-darknavy font-bold text-xs rounded-lg cursor-pointer shrink-0"
+                  >
+                    SELECT
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* SECTION 2: MULTI-ITEM BUILDER (Unlimited Items) */}
-      <div className="bg-tgb-navy border border-tgb-navyborder rounded-2xl p-6 shadow-xl space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-tgb-navyborder">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-tgb-gold/15 text-tgb-gold flex items-center justify-center font-bold text-xs">
+      {/* 3. STEP 2: TRANSACTION DETAILS (BUY vs SELL) */}
+      {txType === 'BUY' ? (
+        /* ==================== BUY WORKFLOW ==================== */
+        <div className="bg-tgb-navy border border-tgb-navyborder rounded-3xl p-6 shadow-xl space-y-6">
+          <div className="flex items-center gap-2 pb-3 border-b border-tgb-navyborder">
+            <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center">
               2
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white font-display">
-                Itemized Valuation & Assay Entry ({items.length} {items.length === 1 ? 'Item' : 'Items'})
-              </h2>
-              <p className="text-[11px] text-gray-400">Add unlimited items with custom details and multi-angle photo captures</p>
-            </div>
+            </span>
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+              Gold Weight & Market Valuation
+            </h2>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleAddItem(false)}
-              className="py-2 px-3.5 bg-tgb-gold hover:bg-tgb-goldlight text-tgb-darknavy font-extrabold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" /> + ADD ITEM
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAddItem(true)}
-              className="py-2 px-3.5 bg-tgb-darknavy hover:bg-tgb-navylight border border-tgb-gold/40 text-tgb-gold font-bold text-xs rounded-xl transition-all flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5" /> + CUSTOM ITEM
-            </button>
-          </div>
-        </div>
+          {/* Item Description & Karat */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                Gold / Item Type
+              </label>
+              <select
+                value={buyItemName}
+                onChange={(e) => {
+                  setBuyItemName(e.target.value);
+                  // preset typical rates
+                  if (e.target.value.includes('10K')) setBuyRate(34.0);
+                  else if (e.target.value.includes('14K')) setBuyRate(48.0);
+                  else if (e.target.value.includes('18K')) setBuyRate(62.0);
+                  else if (e.target.value.includes('22K') || e.target.value.includes('24K')) setBuyRate(81.0);
+                  else if (e.target.value.includes('Silver')) setBuyRate(0.95);
+                }}
+                className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white text-xs sm:text-sm focus:border-tgb-gold focus:outline-none cursor-pointer"
+              >
+                <option value="10K Gold Scrap / Jewelry">10K Gold Scrap / Estate</option>
+                <option value="14K Gold Scrap / Estate">14K Gold Scrap / Estate</option>
+                <option value="18K Gold Fine Jewelry">18K Gold Fine Jewelry</option>
+                <option value="22K / 24K Pure Gold Bullion">22K / 24K Pure Gold Bullion</option>
+                <option value="999 Fine Silver Bar">999 Fine Silver Bar</option>
+                <option value="Sterling Silver Jewelry (.925)">Sterling Silver Jewelry (.925)</option>
+                <option value="Custom Gold / Diamond Piece">Custom Gold / Diamond Piece</option>
+              </select>
+            </div>
 
-        {/* Item Cards Loop */}
-        <div className="space-y-6">
-          {items.map((item, idx) => (
-            <div
-              key={item.id}
-              className="bg-tgb-darknavy border border-tgb-navyborder rounded-2xl p-5 space-y-4 relative shadow-lg hover:border-tgb-navyborder/80 transition-colors"
-            >
-              {/* Item Header */}
-              <div className="flex items-center justify-between gap-3 pb-3 border-b border-tgb-navyborder/60">
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-md bg-tgb-navy text-white text-xs font-bold flex items-center justify-center border border-tgb-navyborder">
-                    #{idx + 1}
-                  </span>
-                  <span className="font-bold text-white text-sm font-display">
-                    {item.name || 'Unnamed Item'}
-                  </span>
-                  <span className="text-[10px] font-semibold text-tgb-gold bg-tgb-gold/10 px-2 py-0.5 rounded border border-tgb-gold/20">
-                    {item.category}
-                  </span>
-                  {item.isCustom && (
-                    <span className="text-[10px] font-semibold text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
-                      Custom Entry
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <span className="text-[10px] text-gray-400 block uppercase">Item Total</span>
-                    <span className="font-mono font-bold text-tgb-gold text-base">
-                      ${item.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-
-                  {items.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveItem(idx)}
-                      className="p-1.5 text-gray-400 hover:text-rose-400 bg-tgb-navy hover:bg-rose-500/10 rounded-lg border border-tgb-navyborder transition-colors"
-                      title="Remove Item"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Item Predefined Menu Selector OR Category */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Predefined Catalog Menu</label>
-                  <select
-                    onChange={(e) => handleSelectPredefinedMenu(idx, e.target.value)}
-                    className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  >
-                    <option value="">-- Choose from Catalog --</option>
-                    {menuItems.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        [{m.category}] {m.name} (${m.estPricePerUnit}/{m.typicalUnit})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Item Name *</label>
-                  <input
-                    type="text"
-                    value={item.name}
-                    onChange={(e) => handleItemFieldChange(idx, { name: e.target.value })}
-                    className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Category *</label>
-                  <select
-                    value={item.category}
-                    onChange={(e) => handleItemFieldChange(idx, { category: e.target.value as MetalCategory })}
-                    className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  >
-                    <option value="Gold">Gold</option>
-                    <option value="Silver">Silver</option>
-                    <option value="Diamond">Diamond</option>
-                    <option value="Platinum">Platinum</option>
-                    <option value="Watches">Watches</option>
-                    <option value="Coins & Currency">Coins & Currency</option>
-                    <option value="Collectibles">Collectibles</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Material / Alloy</label>
-                  <input
-                    type="text"
-                    value={item.material}
-                    onChange={(e) => handleItemFieldChange(idx, { material: e.target.value })}
-                    placeholder="e.g. 14K Yellow Gold, Oystersteel"
-                    className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  />
-                </div>
-              </div>
-
-              {/* Purity, Weight, Quantity, Unit Price */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Purity / Grade</label>
-                  <input
-                    type="text"
-                    value={item.purity}
-                    onChange={(e) => handleItemFieldChange(idx, { purity: e.target.value })}
-                    placeholder="14K (58.5%), VS1/G, 999 Fine"
-                    className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Weight</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={item.weight}
-                    onChange={(e) => handleItemFieldChange(idx, { weight: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Unit</label>
-                  <select
-                    value={item.unit}
-                    onChange={(e) => handleItemFieldChange(idx, { unit: e.target.value as any })}
-                    className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  >
-                    <option value="g">Grams (g)</option>
-                    <option value="oz">Troy Oz (oz)</option>
-                    <option value="dwt">Pennyweight (dwt)</option>
-                    <option value="ct">Carats (ct)</option>
-                    <option value="pcs">Pieces (pcs)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => handleItemFieldChange(idx, { quantity: parseInt(e.target.value) || 1 })}
-                    className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Offered Unit Price ($)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={item.offeredUnitPrice}
-                    onChange={(e) => handleItemFieldChange(idx, { offeredUnitPrice: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono text-emerald-400 font-bold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Calculated Item Total</label>
-                  <div className="w-full bg-tgb-darknavy border border-tgb-gold/30 rounded-lg px-2.5 py-2 text-tgb-gold font-mono font-bold text-xs flex items-center">
-                    ${item.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Item Description Notes */}
-              <div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                Weight in Grams (g)
+              </label>
+              <div className="relative">
                 <input
-                  type="text"
-                  value={item.description || ''}
-                  onChange={(e) => handleItemFieldChange(idx, { description: e.target.value })}
-                  placeholder="Appraisal notes: e.g. Olympus GoldXpert XRF tested 58.7% Au, clean hallmark stamp on clasp..."
-                  className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-3 py-1.5 text-gray-300 text-xs focus:outline-none focus:border-tgb-gold"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={buyWeight || ''}
+                  onChange={(e) => {
+                    const w = parseFloat(e.target.value) || 0;
+                    setBuyWeight(w);
+                    // auto calculate suggested payout (e.g. ~60% of market)
+                    const mv = w * buyRate;
+                    setBuyCustomerPayout(+(mv * 0.6).toFixed(2));
+                  }}
+                  placeholder="e.g. 4.00"
+                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white font-mono text-base font-bold focus:border-tgb-gold focus:outline-none"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
+                  GRAMS
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Rate & Customer Payout Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                Market Rate ($ / gram)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={buyRate || ''}
+                  onChange={(e) => {
+                    const r = parseFloat(e.target.value) || 0;
+                    setBuyRate(r);
+                    const mv = buyWeight * r;
+                    setBuyCustomerPayout(+(mv * 0.6).toFixed(2));
+                  }}
+                  placeholder="e.g. 60.00"
+                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white font-mono text-base font-bold focus:border-tgb-gold focus:outline-none"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
+                  $/g
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between">
+                <span>Customer Payout (Amount Paid to Customer)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-base">
+                  $
+                </span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={buyCustomerPayout || ''}
+                  onChange={(e) => setBuyCustomerPayout(parseFloat(e.target.value) || 0)}
+                  placeholder="e.g. 140.00"
+                  className="w-full bg-[#071320] border-2 border-emerald-500/60 focus:border-emerald-400 rounded-xl pl-8 pr-3.5 py-3 text-white font-mono text-lg font-black focus:outline-none"
                 />
               </div>
+            </div>
+          </div>
 
-              {/* ITEM IMAGES & CAMERA CAPTURE */}
-              <div className="pt-2 border-t border-tgb-navyborder/50">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <span className="text-[11px] font-bold text-gray-300 uppercase flex items-center gap-1.5">
-                    <Camera className="w-3.5 h-3.5 text-tgb-gold" />
-                    Item Photos ({item.images.length} Attached)
-                  </span>
+          {/* GROSS MARGIN & PROFIT CARD (Visible only to authorized staff) */}
+          <div className="bg-[#071320] border border-tgb-gold/40 rounded-2xl p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            <div className="space-y-1 border-r border-tgb-navyborder/60">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                Market Value
+              </span>
+              <span className="text-lg font-bold text-white font-mono">
+                ${buyMarketValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+              <span className="text-[10px] text-gray-500 block">{buyWeight}g × ${buyRate}/g</span>
+            </div>
 
-                  <div className="flex items-center gap-2">
-                    <label className="cursor-pointer py-1 px-2.5 bg-tgb-navy hover:bg-tgb-navylight border border-tgb-navyborder text-gray-200 text-[11px] font-semibold rounded-lg flex items-center gap-1 transition-colors">
-                      <Upload className="w-3 h-3 text-tgb-gold" />
-                      <span>Upload Photos</span>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={(e) => handleImageUpload(idx, e, 'General')}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
+            <div className="space-y-1 border-r border-tgb-navyborder/60">
+              <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
+                Customer Payout
+              </span>
+              <span className="text-lg font-bold text-emerald-400 font-mono">
+                ${finalBuyPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+              <span className="text-[10px] text-gray-500 block">Money Paid Out</span>
+            </div>
 
-                {/* Thumbnails list */}
-                <div className="flex flex-wrap gap-2.5">
-                  {item.images.map((img) => (
-                    <div
-                      key={img.id}
-                      className="relative w-24 h-20 bg-tgb-navy border border-tgb-navyborder rounded-lg overflow-hidden group shadow"
-                    >
-                      <img src={img.url} alt={img.tag} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(idx, img.id)}
-                          className="self-end p-1 bg-rose-500/80 hover:bg-rose-600 text-white rounded text-[10px]"
-                          title="Delete photo"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                        <span className="text-[9px] text-center font-bold text-tgb-gold uppercase truncate">
-                          {img.tag}
-                        </span>
-                      </div>
-                      <span className="absolute bottom-0 left-0 right-0 bg-black/70 text-[9px] text-center text-gray-300 uppercase py-0.5 truncate group-hover:hidden">
-                        {img.tag}
-                      </span>
-                    </div>
-                  ))}
+            <div className="space-y-1 border-r border-tgb-navyborder/60">
+              <span className="text-[11px] font-bold text-tgb-gold uppercase tracking-wider block">
+                Your Gross Margin
+              </span>
+              <span className="text-xl font-black text-tgb-gold font-mono">
+                ${buyGrossMargin.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+              <span className="text-[10px] text-gray-500 block">Market - Payout</span>
+            </div>
 
-                  {item.images.length === 0 && (
-                    <div className="text-[11px] text-gray-500 italic py-2">
-                      No photos uploaded for this item. Drag & drop images or tap 'Upload Photos' to attach hallmark/front captures.
-                    </div>
-                  )}
-                </div>
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider block">
+                Margin %
+              </span>
+              <span className="text-lg font-bold text-cyan-400 font-mono">
+                {buyMarginPercent}%
+              </span>
+              <span className="text-[10px] text-gray-500 block">Profit Share</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ==================== SELL WORKFLOW ==================== */
+        <div className="bg-tgb-navy border border-tgb-navyborder rounded-3xl p-6 shadow-xl space-y-6">
+          <div className="flex items-center gap-2 pb-3 border-b border-tgb-navyborder">
+            <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center justify-center">
+              2
+            </span>
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+              Retail Sale Pricing & Tax Breakdown
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                Item Description
+              </label>
+              <input
+                type="text"
+                value={sellItemName}
+                onChange={(e) => setSellItemName(e.target.value)}
+                placeholder="e.g. 14K Gold Bracelet"
+                className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white text-xs sm:text-sm focus:border-tgb-gold focus:outline-none"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                Base Price ($)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">
+                  $
+                </span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={sellBasePrice || ''}
+                  onChange={(e) => setSellBasePrice(parseFloat(e.target.value) || 0)}
+                  placeholder="e.g. 250.00"
+                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl pl-8 pr-3.5 py-3 text-white font-mono text-base font-bold focus:border-tgb-gold focus:outline-none"
+                />
               </div>
             </div>
+          </div>
+
+          {/* Additional Charge % & Sales Tax */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-amber-400 uppercase tracking-wider">
+                  Additional Charge %
+                </label>
+                <span className="text-[10px] text-gray-400">Enter percentage, not $</span>
+              </div>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={sellAdditionalChargePercent || ''}
+                  onChange={(e) => setSellAdditionalChargePercent(parseFloat(e.target.value) || 0)}
+                  placeholder="e.g. 50"
+                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white font-mono text-base font-bold focus:border-tgb-gold focus:outline-none"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-amber-400 font-bold">
+                  % (+${sellAdditionalChargeAmount.toFixed(2)})
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                  Sales Tax Rate %
+                </label>
+                <span className="text-[10px] text-gray-400">Texas Standard 8.5%</span>
+              </div>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={sellTaxRatePercent || ''}
+                  onChange={(e) => setSellTaxRatePercent(parseFloat(e.target.value) || 0)}
+                  placeholder="8.5"
+                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white font-mono text-base font-bold focus:border-tgb-gold focus:outline-none"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">
+                  % (+${sellTaxAmount.toFixed(2)})
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* SELL FINANCIAL BREAKDOWN CARD */}
+          <div className="bg-[#071320] border border-tgb-gold/40 rounded-2xl p-5 space-y-2.5 font-mono text-xs">
+            <div className="flex justify-between text-gray-300 pb-1.5 border-b border-tgb-navyborder/80">
+              <span>Base Price:</span>
+              <span className="font-bold">${sellBasePrice.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-amber-400 pb-1.5 border-b border-tgb-navyborder/80">
+              <span>Additional Charge ({sellAdditionalChargePercent}%):</span>
+              <span className="font-bold">+${sellAdditionalChargeAmount.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-gray-300 pb-1.5 border-b border-tgb-navyborder/80">
+              <span>Subtotal:</span>
+              <span className="font-bold">${sellSubtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-gray-300 pb-1.5 border-b border-tgb-navyborder/80">
+              <span>Sales Tax ({sellTaxRatePercent}%):</span>
+              <span className="font-bold">+${sellTaxAmount.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-white text-base font-black pt-1">
+              <span>CUSTOMER TOTAL:</span>
+              <span className="text-tgb-gold font-sans text-xl">${finalSellTotal.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. STEP 3: PAYMENT METHOD & FINAL CONFIRMATION */}
+      <div className="bg-tgb-navy border border-tgb-navyborder rounded-3xl p-6 shadow-xl space-y-6">
+        <div className="flex items-center gap-2 pb-3 border-b border-tgb-navyborder">
+          <span className="w-6 h-6 rounded-full bg-tgb-gold/20 text-tgb-gold text-xs font-bold flex items-center justify-center">
+            3
+          </span>
+          <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+            Settlement & Payment Method
+          </h2>
+        </div>
+
+        {/* Big Touch-Friendly Payment Method Buttons */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {(['CASH', 'CARD', 'WIRE', 'CHEQUE'] as PaymentMethod[]).map((method) => (
+            <button
+              key={method}
+              type="button"
+              onClick={() => setPaymentMethod(method)}
+              className={`p-4 rounded-2xl border text-center transition-all cursor-pointer font-bold text-xs uppercase tracking-wider flex flex-col items-center justify-center gap-2 ${
+                paymentMethod === method
+                  ? 'bg-tgb-gold text-tgb-darknavy border-tgb-gold shadow-lg scale-[1.02]'
+                  : 'bg-[#071320] text-gray-300 border-tgb-navyborder hover:border-tgb-gold/40'
+              }`}
+            >
+              <span>{method === 'CASH' ? '💵 Cash' : method === 'CARD' ? '💳 Card' : method === 'WIRE' ? '🏦 Wire' : '📝 Cheque'}</span>
+              <span>{method}</span>
+            </button>
           ))}
         </div>
+
+        {/* Complete Transaction Button */}
+        <button
+          type="button"
+          disabled={isSaving || !selectedCustomer}
+          onClick={handleSaveTransaction}
+          className={`w-full py-4 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-2 cursor-pointer ${
+            txType === 'BUY'
+              ? 'bg-emerald-500 hover:bg-emerald-400 text-tgb-darknavy shadow-emerald-500/20'
+              : 'bg-gradient-to-r from-tgb-gold to-tgb-goldlight hover:from-tgb-goldlight hover:to-tgb-gold text-tgb-darknavy shadow-tgb-gold/20'
+          }`}
+        >
+          {isSaving ? (
+            <span>Processing Transaction in Supabase...</span>
+          ) : (
+            <>
+              <Check className="w-5 h-5 stroke-[3]" />
+              <span>
+                {txType === 'BUY'
+                  ? `COMPLETE BUY — PAYOUT $${finalBuyPayout.toFixed(2)}`
+                  : `COMPLETE SELL — RECEIVE $${finalSellTotal.toFixed(2)}`}
+              </span>
+            </>
+          )}
+        </button>
       </div>
 
-      {/* SECTION 3: PAYMENT & FINANCIAL SUMMARY */}
-      <div className="bg-tgb-navy border border-tgb-navyborder rounded-2xl p-6 shadow-xl space-y-6">
-        <div className="flex items-center gap-2 pb-3 border-b border-tgb-navyborder">
-          <div className="w-8 h-8 rounded-lg bg-tgb-gold/15 text-tgb-gold flex items-center justify-center font-bold text-xs">
-            3
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-white font-display">Payment Method & Settlement</h2>
-            <p className="text-[11px] text-gray-400">Select payment disbursement / collection mode and finalize transaction totals</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Payment Method Selector & Inputs */}
-          <div className="lg:col-span-7 space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
-                Payment Disbursement Method
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {(['CASH', 'CARD', 'CHEQUE', 'WIRE'] as const).map((method) => (
-                  <button
-                    key={method}
-                    type="button"
-                    onClick={() => setPaymentMethod(method)}
-                    className={`py-3 px-3 rounded-xl border text-xs font-bold transition-all ${
-                      paymentMethod === method
-                        ? 'bg-tgb-gold text-tgb-darknavy border-tgb-gold shadow-md'
-                        : 'bg-tgb-darknavy border-tgb-navyborder text-gray-300 hover:border-tgb-gold/40'
-                    }`}
-                  >
-                    {method}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Card Specific Fields */}
-            {paymentMethod === 'CARD' && (
-              <div className="bg-tgb-darknavy p-4 rounded-xl border border-tgb-navyborder space-y-3 animate-fade-in">
-                <div className="text-xs font-bold text-white flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-tgb-gold" /> Card Terminal Reference
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-300 mb-1">Card Type</label>
-                    <select
-                      value={cardType}
-                      onChange={(e) => setCardType(e.target.value as any)}
-                      className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                    >
-                      <option value="Visa">Visa</option>
-                      <option value="Mastercard">Mastercard</option>
-                      <option value="Amex">American Express</option>
-                      <option value="Discover">Discover</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-300 mb-1">Last 4 Digits Only *</label>
-                    <input
-                      type="text"
-                      maxLength={4}
-                      value={cardLast4}
-                      onChange={(e) => setCardLast4(e.target.value.replace(/\D/g, ''))}
-                      placeholder="e.g. 4242"
-                      className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
-                    />
-                  </div>
-                </div>
-                <p className="text-[10px] text-gray-400">
-                  PCI-DSS Compliance Notice: Full card numbers and CVV codes are never handled or stored.
-                </p>
-              </div>
-            )}
-
-            {/* Cheque Specific Fields */}
-            {paymentMethod === 'CHEQUE' && (
-              <div className="bg-tgb-darknavy p-4 rounded-xl border border-tgb-navyborder space-y-3 animate-fade-in">
-                <div className="text-xs font-bold text-white">Company / Cashier Cheque Details</div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-300 mb-1">Cheque Number</label>
-                    <input
-                      type="text"
-                      value={chequeNumber}
-                      onChange={(e) => setChequeNumber(e.target.value)}
-                      placeholder="#5024"
-                      className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-300 mb-1">Issuing Bank Name</label>
-                    <input
-                      type="text"
-                      value={bankName}
-                      onChange={(e) => setBankName(e.target.value)}
-                      placeholder="e.g. JPMorgan Chase Texas"
-                      className="w-full bg-tgb-navy border border-tgb-navyborder rounded-lg px-2.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* General Transaction Notes */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">
-                Transaction Notes & DPS Audit Memo
-              </label>
-              <textarea
-                rows={2}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add counter remarks, appraisal observations, customer requests..."
-                className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-xl px-3.5 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold resize-none"
-              ></textarea>
-            </div>
-          </div>
-
-          {/* Financial Calculation Breakdown Panel */}
-          <div className="lg:col-span-5 bg-tgb-darknavy border border-tgb-gold/30 rounded-2xl p-6 space-y-4 shadow-xl">
-            <h3 className="text-xs font-bold text-tgb-gold uppercase tracking-widest pb-2 border-b border-tgb-navyborder">
-              Financial Breakdown
-            </h3>
-
-            <div className="space-y-2.5 text-xs text-gray-300">
-              <div className="flex justify-between">
-                <span>Items Subtotal ({items.length} {items.length === 1 ? 'item' : 'items'}):</span>
-                <span className="font-mono font-bold text-white">
-                  ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span>Adjustment / Discount:</span>
-                <div className="flex items-center gap-1 w-28">
-                  <span className="text-gray-400 font-mono">$</span>
-                  <input
-                    type="number"
-                    step="1"
-                    value={discountOrAdjustment}
-                    onChange={(e) => setDiscountOrAdjustment(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-tgb-navy border border-tgb-navyborder rounded px-2 py-1 text-white font-mono text-xs focus:outline-none focus:border-tgb-gold"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Texas Sales Tax ({taxRatePercent}%):</span>
-                <span className="font-mono font-bold text-white">
-                  ${taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-
-              <div className="pt-3 border-t border-tgb-navyborder flex justify-between items-baseline">
-                <span className="text-sm font-extrabold text-white uppercase font-display">Grand Total:</span>
-                <span className="text-2xl font-black font-mono text-tgb-gold">
-                  ${finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-[11px] text-gray-400 pt-1">
-                <span>Settlement Method:</span>
-                <span className="font-bold text-white">{paymentMethod}</span>
-              </div>
-            </div>
-
-            {/* Save & Generate Invoice Trigger */}
-            <div className="pt-4">
-              <button
-                type="button"
-                disabled={isSaving}
-                onClick={handleSaveTransaction}
-                className="w-full py-4 bg-gradient-to-r from-tgb-gold to-tgb-goldlight hover:from-tgb-goldlight hover:to-tgb-gold text-tgb-darknavy font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <span>Saving Transaction & Generating DPS Invoice...</span>
-                ) : (
-                  <>
-                    <Receipt className="w-4 h-4" />
-                    <span>SAVE & GENERATE INVOICE</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* QUICK CUSTOMER REGISTRATION MODAL */}
-      {newCustomerModalOpen && (
+      {/* NEW CUSTOMER MODAL */}
+      {customerModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-tgb-navy border border-tgb-gold/40 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-2 border-b border-tgb-navyborder">
-              <h3 className="text-lg font-bold text-white font-display">New Customer Registration</h3>
+          <div className="bg-[#0a1827] border border-tgb-gold/40 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-tgb-navyborder">
+              <h3 className="text-lg font-bold text-white font-display">Add New Customer</h3>
               <button
-                onClick={() => setNewCustomerModalOpen(false)}
-                className="text-gray-400 hover:text-white"
+                onClick={() => setCustomerModalOpen(false)}
+                className="p-1 text-gray-400 hover:text-white rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateCustomerSubmit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newCustomerForm.fullName}
-                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, fullName: e.target.value })}
-                    placeholder="John Doe"
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Mobile Phone *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={newCustomerForm.mobileNumber}
-                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, mobileNumber: e.target.value })}
-                    placeholder="(214) 555-0100"
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Government ID Type *</label>
-                  <select
-                    value={newCustomerForm.idType}
-                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, idType: e.target.value as any })}
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  >
-                    <option value="Drivers License">Driver's License (Texas/Other)</option>
-                    <option value="Passport">US / International Passport</option>
-                    <option value="State ID">State Photo ID</option>
-                    <option value="Military ID">Military ID</option>
-                    <option value="Other">Other Government ID</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">ID Number *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newCustomerForm.idNumber}
-                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, idNumber: e.target.value })}
-                    placeholder="TX-DL-8492019"
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Street Address *</label>
+            <form onSubmit={handleSaveCustomer} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-300 uppercase">
+                  Full Name <span className="text-rose-400">*</span>
+                </label>
                 <input
                   type="text"
                   required
-                  value={newCustomerForm.address}
-                  onChange={(e) => setNewCustomerForm({ ...newCustomerForm, address: e.target.value })}
-                  placeholder="123 Main St"
-                  className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
+                  placeholder="e.g. John Smith"
+                  value={newCustomer.fullName}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, fullName: e.target.value })}
+                  className="w-full bg-[#071320] border border-tgb-navyborder focus:border-tgb-gold rounded-xl px-3.5 py-2.5 text-white text-xs"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">City</label>
-                  <input
-                    type="text"
-                    value={newCustomerForm.city}
-                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, city: e.target.value })}
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">State</label>
-                  <input
-                    type="text"
-                    value={newCustomerForm.state}
-                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, state: e.target.value })}
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Zip</label>
-                  <input
-                    type="text"
-                    value={newCustomerForm.zipCode}
-                    onChange={(e) => setNewCustomerForm({ ...newCustomerForm, zipCode: e.target.value })}
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-300 uppercase">
+                  Phone Number <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="e.g. (469) 555-0199"
+                  value={newCustomer.phone}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                  className="w-full bg-[#071320] border border-tgb-navyborder focus:border-tgb-gold rounded-xl px-3.5 py-2.5 text-white text-xs"
+                />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-300 uppercase">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  placeholder="e.g. john.smith@email.com"
+                  value={newCustomer.email}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                  className="w-full bg-[#071320] border border-tgb-navyborder focus:border-tgb-gold rounded-xl px-3.5 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-300 uppercase">
+                  Driver&apos;s License (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. TX-DL-9482019"
+                  value={newCustomer.driversLicense}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, driversLicense: e.target.value })}
+                  className="w-full bg-[#071320] border border-tgb-navyborder focus:border-tgb-gold rounded-xl px-3.5 py-2.5 text-white text-xs"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setNewCustomerModalOpen(false)}
-                  className="px-4 py-2 text-xs text-gray-400 hover:text-white"
+                  onClick={() => setCustomerModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-tgb-navy text-gray-300 text-xs font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-tgb-gold text-tgb-darknavy font-bold text-xs rounded-lg uppercase"
+                  className="flex-1 py-2.5 rounded-xl bg-tgb-gold hover:bg-tgb-goldlight text-tgb-darknavy text-xs font-bold"
                 >
-                  Create & Attach Customer
+                  Save Customer
                 </button>
               </div>
             </form>
           </div>
         </div>
-      )}
-
-      {/* GENERATED INVOICE MODAL */}
-      {savedTransaction && (
-        <InvoiceViewModal
-          isOpen={invoiceModalOpen}
-          transaction={savedTransaction}
-          onClose={() => {
-            setInvoiceModalOpen(false);
-            router.push('/admin/transactions');
-          }}
-        />
       )}
     </div>
   );

@@ -59,7 +59,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
           <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-tgb-navy border border-tgb-navyborder text-[11px] text-gray-300">
             <Building className="w-3.5 h-3.5 text-tgb-gold" />
-            <span className="truncate max-w-[180px] font-medium">{user?.locationName || 'Dallas Flagship'}</span>
+            <span className="truncate max-w-[240px] font-medium">2427 W Mockingbird Ln, Dallas</span>
           </div>
         </div>
 
@@ -82,14 +82,6 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
         {/* Right: Quick Controls, Notifications & User Profile */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Public Website Link */}
-          <Link
-            href="/"
-            className="hidden sm:flex items-center gap-1 text-[11px] font-semibold text-gray-300 hover:text-tgb-gold px-2.5 py-1.5 rounded-lg bg-tgb-navy/60 border border-tgb-navyborder transition-colors"
-          >
-            <span>Public Site</span>
-            <ExternalLink className="w-3 h-3" />
-          </Link>
 
           {/* User Profile Pill & Dropdown */}
           <div className="relative">

@@ -15,9 +15,11 @@ import {
   CheckCircle2,
   KeyRound,
   BadgeCheck,
-  Shield,
-  Layers,
   Scale,
+  Layers,
+  Shield,
+  Phone,
+  MapPin,
 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -79,63 +81,69 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#071522] flex flex-col lg:flex-row antialiased selection:bg-tgb-gold selection:text-tgb-darknavy">
-      {/* LEFT SIDE: Brand Showcase & Institutional Identity */}
-      <div className="lg:w-1/2 bg-gradient-to-br from-[#071522] via-[#0b1d2e] to-[#081726] border-b lg:border-b-0 lg:border-r border-tgb-navyborder p-8 sm:p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden">
-        {/* Background ambient lighting */}
+    <div className="min-h-screen bg-[#061421] flex flex-col lg:flex-row antialiased selection:bg-tgb-gold selection:text-tgb-darknavy">
+      {/* LEFT SIDE: Texas Gold Buyers Brand Identity */}
+      <div className="lg:w-1/2 bg-gradient-to-br from-[#061421] via-[#081C2C] to-[#040e18] border-b lg:border-b-0 lg:border-r border-tgb-navyborder p-8 sm:p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden">
+        {/* Ambient lighting */}
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-tgb-gold/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-tgb-gold/5 rounded-full blur-3xl pointer-events-none"></div>
 
-        {/* Top: Logo */}
+        {/* Top: Official Logo */}
         <div className="relative z-10">
           <TexasGoldBuyersLogo size="lg" />
         </div>
 
-        {/* Middle: Brand Pitch & Security Messaging */}
+        {/* Middle: Brand Pitch & Security */}
         <div className="my-10 lg:my-0 space-y-6 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-tgb-gold/10 border border-tgb-gold/30 text-tgb-gold text-xs font-bold uppercase tracking-widest">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Internal Enterprise Portal
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-tgb-gold/10 border border-tgb-gold/30 text-tgb-gold text-xs font-extrabold uppercase tracking-widest">
+            <ShieldCheck className="w-4 h-4" />
+            SECURE BUSINESS PORTAL
           </div>
 
           <div className="space-y-3">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white font-display leading-tight tracking-tight">
-              Precious Metals & POS Management System
+              Authorized Team Terminal
             </h1>
             <p className="text-sm text-gray-300 max-w-lg leading-relaxed">
-              Authorized transaction, appraisal, vault management, and regulatory compliance platform for Texas Gold Buyers appraisers and executives.
+              Authorized access for Texas Gold Buyers team members. Internal precious metals management, POS, and certified appraisal suite.
             </p>
           </div>
 
           {/* Operational Badges */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-tgb-navyborder/80">
-            <div className="p-3 rounded-xl bg-tgb-darknavy/70 border border-tgb-navyborder space-y-1">
+            <div className="p-3.5 rounded-2xl bg-[#081C2C]/80 border border-tgb-navyborder space-y-1">
               <Scale className="w-4 h-4 text-tgb-gold" />
               <div className="text-xs font-bold text-white">XRF Assays</div>
-              <div className="text-[11px] text-gray-400">Locked spot benchmarks</div>
+              <div className="text-[11px] text-gray-400">Locked spot rates</div>
             </div>
-            <div className="p-3 rounded-xl bg-tgb-darknavy/70 border border-tgb-navyborder space-y-1">
-              <Layers className="w-4 h-4 text-emerald-400" />
-              <div className="text-xs font-bold text-white">4 Texas Lounges</div>
-              <div className="text-[11px] text-gray-400">Dallas, Houston, Austin, SA</div>
+            <div className="p-3.5 rounded-2xl bg-[#081C2C]/80 border border-tgb-navyborder space-y-1">
+              <MapPin className="w-4 h-4 text-emerald-400" />
+              <div className="text-xs font-bold text-white">Dallas Flagship</div>
+              <div className="text-[11px] text-gray-400">Mockingbird Ln</div>
             </div>
-            <div className="p-3 rounded-xl bg-tgb-darknavy/70 border border-tgb-navyborder space-y-1">
+            <div className="p-3.5 rounded-2xl bg-[#081C2C]/80 border border-tgb-navyborder space-y-1">
               <Shield className="w-4 h-4 text-cyan-400" />
-              <div className="text-xs font-bold text-white">Immutable Ledger</div>
-              <div className="text-[11px] text-gray-400">DPS audit compliant</div>
+              <div className="text-xs font-bold text-white">DPS Compliant</div>
+              <div className="text-[11px] text-gray-400">Immutable ledger</div>
             </div>
           </div>
         </div>
 
-        {/* Bottom: Confidentiality Notice */}
-        <div className="relative z-10 text-[11px] text-gray-500 flex items-center justify-between border-t border-tgb-navyborder/60 pt-4">
-          <span>© {new Date().getFullYear()} Texas Gold Buyers LLC</span>
-          <span>Confidential & Proprietary</span>
+        {/* Bottom: Official Business Footer */}
+        <div className="relative z-10 text-[11px] text-gray-400 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-tgb-navyborder/60 pt-4">
+          <div className="space-y-0.5">
+            <span className="font-bold text-gray-300">Texas Gold Buyers</span>
+            <div>2427 W Mockingbird Ln, Dallas, TX 75235</div>
+          </div>
+          <div className="flex items-center gap-1.5 text-gray-400">
+            <Phone className="w-3.5 h-3.5 text-tgb-gold" />
+            <span>+1 (469) 453-5339</span>
+          </div>
         </div>
       </div>
 
-      {/* RIGHT SIDE: High-End Authentication Card */}
-      <div className="lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-[#06111c] relative">
+      {/* RIGHT SIDE: Authentication Card */}
+      <div className="lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-[#040e18] relative">
         <div className="w-full max-w-md space-y-6">
           {/* Card Header */}
           <div className="space-y-2 text-left">
@@ -144,15 +152,15 @@ export default function LoginPage() {
                 <KeyRound className="w-3.5 h-3.5" />
                 Staff Terminal Access
               </span>
-              <span className="text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-mono">
+              <span className="text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 font-mono">
                 System Active
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
-              Sign In to Continue
+              Welcome Back
             </h2>
             <p className="text-xs text-gray-400">
-              Enter your assigned Employee ID and security credentials.
+              Sign in to your secure business portal.
             </p>
           </div>
 
@@ -168,16 +176,16 @@ export default function LoginPage() {
           {isSuccess && (
             <div className="flex items-center gap-2.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 p-3.5 rounded-xl text-xs animate-fade-in">
               <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span className="font-semibold">Access Granted • Initializing Texas Gold Buyers Portal...</span>
+              <span className="font-semibold">✓ ACCESS GRANTED • Initializing Portal...</span>
             </div>
           )}
 
           {/* Login Form */}
           <form
             onSubmit={handleLogin}
-            className={`bg-[#0a1827] border ${
+            className={`bg-[#081C2C] border ${
               error ? 'border-rose-500/50' : 'border-tgb-navyborder'
-            } rounded-2xl p-6 sm:p-8 shadow-2xl space-y-5 transition-all ${
+            } rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5 transition-all ${
               shake ? 'animate-shake' : ''
             }`}
           >
@@ -190,7 +198,7 @@ export default function LoginPage() {
                 Employee / Admin ID <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <BadgeCheck className="w-4 h-4 text-tgb-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <BadgeCheck className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   id="employee-id"
                   type="text"
@@ -200,7 +208,7 @@ export default function LoginPage() {
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
                   placeholder="e.g. EMP-001 or EMP-002"
-                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl pl-10 pr-3.5 py-3 text-white text-xs sm:text-sm font-mono placeholder:text-gray-500 focus:outline-none focus:border-tgb-gold focus:ring-1 focus:ring-tgb-gold transition-all"
+                  className="w-full bg-[#061421] border border-tgb-navyborder rounded-xl pl-10 pr-3.5 py-3 text-white text-xs sm:text-sm font-mono placeholder:text-gray-500 focus:outline-none focus:border-tgb-gold focus:ring-1 focus:ring-tgb-gold transition-all"
                 />
               </div>
             </div>
@@ -214,7 +222,7 @@ export default function LoginPage() {
                 Password <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-tgb-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Lock className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -223,13 +231,13 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl pl-10 pr-10 py-3 text-white text-xs sm:text-sm font-mono placeholder:text-gray-500 focus:outline-none focus:border-tgb-gold focus:ring-1 focus:ring-tgb-gold transition-all"
+                  className="w-full bg-[#061421] border border-tgb-navyborder rounded-xl pl-10 pr-10 py-3 text-white text-xs sm:text-sm font-mono placeholder:text-gray-500 focus:outline-none focus:border-tgb-gold focus:ring-1 focus:ring-tgb-gold transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -248,9 +256,9 @@ export default function LoginPage() {
                   <span>Authenticating...</span>
                 </div>
               ) : isSuccess ? (
-                <div className="flex items-center gap-2 text-emerald-900">
+                <div className="flex items-center gap-2 text-emerald-950 font-black">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Access Granted</span>
+                  <span>ACCESS GRANTED</span>
                 </div>
               ) : (
                 <>
@@ -260,35 +268,35 @@ export default function LoginPage() {
               )}
             </button>
 
-            {/* Security Guarantee */}
-            <div className="pt-2 text-center">
+            {/* Security Notice */}
+            <div className="pt-1 text-center">
               <span className="text-[11px] text-gray-400 flex items-center justify-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-tgb-gold" />
-                Authorized personnel only • 256-bit encrypted authentication
+                Authorized personnel only • Protected business system
               </span>
             </div>
           </form>
 
           {/* Quick Staff Reference IDs */}
-          <div className="p-4 rounded-xl bg-[#091522] border border-tgb-navyborder/70 text-xs space-y-2">
+          <div className="p-4 rounded-2xl bg-[#081C2C]/60 border border-tgb-navyborder text-xs space-y-2">
             <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-              Staff Terminal Key Reference:
+              Staff Terminal Quick Reference:
             </div>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <button
                 type="button"
                 onClick={() => fillCredential('EMP-001')}
-                className="p-2 rounded-lg bg-[#071320] border border-tgb-navyborder hover:border-amber-500/40 text-left transition-all"
+                className="p-2.5 rounded-xl bg-[#061421] border border-tgb-navyborder hover:border-tgb-gold/60 text-left transition-all cursor-pointer"
               >
-                <div className="font-bold text-amber-300">EMP-001 (Super Admin)</div>
+                <div className="font-bold text-amber-300">EMP-001 (Admin)</div>
                 <div className="text-[10px] text-gray-400">Alexander Sterling</div>
               </button>
               <button
                 type="button"
                 onClick={() => fillCredential('EMP-002')}
-                className="p-2 rounded-lg bg-[#071320] border border-tgb-navyborder hover:border-emerald-500/40 text-left transition-all"
+                className="p-2.5 rounded-xl bg-[#061421] border border-tgb-navyborder hover:border-emerald-500/60 text-left transition-all cursor-pointer"
               >
-                <div className="font-bold text-emerald-300">EMP-002 (Staff Appraiser)</div>
+                <div className="font-bold text-emerald-300">EMP-002 (Staff)</div>
                 <div className="text-[10px] text-gray-400">Michael Alvarez</div>
               </button>
             </div>

@@ -363,79 +363,52 @@ export default function AdminCustomersPage() {
             </div>
 
             <form onSubmit={handleCreateCustomer} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Full Name *</label>
+                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Full Legal Name *</label>
                   <input
                     type="text"
                     required
                     value={customerForm.fullName}
                     onChange={(e) => setCustomerForm({ ...customerForm, fullName: e.target.value })}
-                    placeholder="Customer Name"
+                    placeholder="e.g. John Smith"
                     className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Mobile Phone *</label>
+                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Phone Number *</label>
                   <input
                     type="tel"
                     required
                     value={customerForm.mobileNumber}
                     onChange={(e) => setCustomerForm({ ...customerForm, mobileNumber: e.target.value })}
-                    placeholder="(214) 555-0100"
+                    placeholder="(469) 555-0100"
                     className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-300 mb-1">Email Address</label>
                   <input
                     type="email"
                     value={customerForm.email}
                     onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
-                    placeholder="customer@gmail.com"
+                    placeholder="customer@email.com"
                     className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">ID Type *</label>
-                  <select
-                    value={customerForm.idType}
-                    onChange={(e) => setCustomerForm({ ...customerForm, idType: e.target.value })}
-                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                  >
-                    <option value="Drivers License">Driver's License (Texas/Other)</option>
-                    <option value="Passport">Passport</option>
-                    <option value="State ID">State ID</option>
-                    <option value="Military ID">Military ID</option>
-                  </select>
+                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Driver&apos;s License (Optional)</label>
+                  <input
+                    type="text"
+                    value={customerForm.idNumber}
+                    onChange={(e) => setCustomerForm({ ...customerForm, idNumber: e.target.value })}
+                    placeholder="TX-DL-8492019"
+                    className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
+                  />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Government ID Number *</label>
-                <input
-                  type="text"
-                  required
-                  value={customerForm.idNumber}
-                  onChange={(e) => setCustomerForm({ ...customerForm, idNumber: e.target.value })}
-                  placeholder="TX-DL-8492019"
-                  className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Street Address *</label>
-                <input
-                  type="text"
-                  required
-                  value={customerForm.address}
-                  onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
-                  placeholder="123 Main St"
-                  className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold"
-                />
               </div>
 
               <div className="grid grid-cols-3 gap-3">

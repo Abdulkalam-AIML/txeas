@@ -21,7 +21,7 @@ import {
 
 export default function AdminSettingsPage() {
   const { resetDemoDatabase } = useAuth();
-  const [taxRate, setTaxRate] = useState(8.25);
+  const [taxRate, setTaxRate] = useState(8.5);
   const [cashEnabled, setCashEnabled] = useState(true);
   const [cardEnabled, setCardEnabled] = useState(true);
   const [chequeEnabled, setChequeEnabled] = useState(true);

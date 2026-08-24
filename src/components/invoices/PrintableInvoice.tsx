@@ -3,7 +3,6 @@
 import React from 'react';
 import { Transaction } from '@/types';
 import TexasGoldBuyersLogo from '@/components/Logo';
-import { ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 interface PrintableInvoiceProps {
   transaction: Transaction;
@@ -21,22 +20,23 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ transaction 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b-2 border-gray-900">
         <div>
           <TexasGoldBuyersLogo size="md" theme="light" />
-          <div className="text-[11px] text-gray-600 mt-2 space-y-0.5">
-            <div>2600 McKinney Ave, Suite 400 • Dallas, TX 75204</div>
-            <div>Phone: (214) 555-GOLD (4653) • appraisals@texasgoldbuyers.com</div>
-            <div className="font-semibold text-gray-800">
-              Texas DPS Regulated Precious Metal Dealer License #TX-PMD-49210
+          <div className="text-[11px] text-gray-700 mt-2 space-y-0.5 font-medium">
+            <div className="font-bold text-gray-900">Texas Gold Buyers</div>
+            <div>2427 W Mockingbird Ln • Dallas, TX 75235</div>
+            <div>Phone: +1 (469) 453-5339 • info@texasgoldbuyers.com</div>
+            <div className="text-gray-500 text-[10px]">
+              Texan Owned & Operated • Texas DPS Regulated Dealer #TX-PMD-49210
             </div>
           </div>
         </div>
 
         <div className="text-left sm:text-right space-y-1">
           <div
-            className={`inline-block px-3 py-1 rounded text-xs font-extrabold uppercase tracking-wider text-white ${
-              isBuy ? 'bg-emerald-700' : 'bg-amber-700'
+            className={`inline-block px-3 py-1 rounded text-xs font-black uppercase tracking-wider text-white ${
+              isBuy ? 'bg-emerald-800' : 'bg-amber-800'
             }`}
           >
-            {isBuy ? 'OFFICIAL BUY INVOICE' : 'RETAIL SALE INVOICE'}
+            {isBuy ? 'OFFICIAL BUY INTAKE RECEIPT' : 'RETAIL SALE INVOICE'}
           </div>
           <div className="text-sm font-black font-mono text-gray-900">
             {transaction.invoiceNumber}
@@ -50,7 +50,7 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ transaction 
         </div>
       </div>
 
-      {/* Parties: Customer & Store */}
+      {/* Customer & Location Details */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
         <div className="space-y-1">
           <span className="font-bold text-gray-900 uppercase text-[10px] tracking-wider block">
@@ -58,21 +58,18 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ transaction 
           </span>
           <div className="text-sm font-bold text-gray-900">{transaction.customerName}</div>
           <div className="text-gray-700">Phone: {transaction.customerPhone}</div>
-          <div className="text-gray-700">Email: {transaction.customerEmail || 'N/A'}</div>
-          <div className="text-gray-700">ID Ref: {transaction.customerId}</div>
-          {transaction.customerAddress && (
-            <div className="text-gray-600 text-[11px]">{transaction.customerAddress}</div>
-          )}
+          {transaction.customerEmail && <div className="text-gray-700">Email: {transaction.customerEmail}</div>}
+          <div className="text-gray-600 text-[11px]">Dallas, TX Store Location</div>
         </div>
 
         <div className="space-y-1 sm:text-right">
           <span className="font-bold text-gray-900 uppercase text-[10px] tracking-wider block">
-            Processed At:
+            Store & Appraiser:
           </span>
-          <div className="text-sm font-bold text-gray-900">{transaction.locationName}</div>
+          <div className="text-sm font-bold text-gray-900">Texas Gold Buyers Flagship</div>
           <div className="text-gray-700">Appraiser / Staff: {transaction.employeeName}</div>
-          <div className="text-gray-700">Payment Status: <strong className="text-emerald-700">{transaction.payment.status}</strong></div>
           <div className="text-gray-700 font-mono">Payment Ref: {transaction.payment.referenceNumber}</div>
+          <div className="text-gray-700">Payment Status: <strong className="text-emerald-700">{transaction.payment.status}</strong></div>
         </div>
       </div>
 
@@ -82,12 +79,11 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ transaction 
           <thead>
             <tr className="border-b-2 border-gray-800 text-[10px] uppercase font-bold text-gray-700">
               <th className="py-2 px-2">#</th>
-              <th className="py-2 px-2">Item Description & Assay</th>
+              <th className="py-2 px-2">Item Description</th>
               <th className="py-2 px-2">Category</th>
-              <th className="py-2 px-2">Purity / Material</th>
               <th className="py-2 px-2 text-right">Weight</th>
               <th className="py-2 px-2 text-right">Qty</th>
-              <th className="py-2 px-2 text-right">Rate</th>
+              <th className="py-2 px-2 text-right">Rate / Unit</th>
               <th className="py-2 px-2 text-right">Total ($)</th>
             </tr>
           </thead>
@@ -100,14 +96,8 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ transaction 
                   {item.description && (
                     <span className="text-[10px] text-gray-500 block">{item.description}</span>
                   )}
-                  {item.images && item.images.length > 0 && (
-                    <span className="text-[9px] text-emerald-700 font-semibold inline-flex items-center gap-1 mt-0.5">
-                      ✓ {item.images.length} Verified Photo(s) Attached
-                    </span>
-                  )}
                 </td>
                 <td className="py-2.5 px-2">{item.category}</td>
-                <td className="py-2.5 px-2 font-mono text-[11px]">{item.purity}</td>
                 <td className="py-2.5 px-2 text-right font-mono font-semibold">
                   {item.weight} {item.unit}
                 </td>
@@ -128,27 +118,15 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ transaction 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t-2 border-gray-800 items-start">
         <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
           <span className="font-bold text-gray-900 uppercase text-[10px] tracking-wider block">
-            Payment Disbursement Details:
+            Payment Disbursement:
           </span>
           <div className="flex justify-between">
             <span className="text-gray-600">Method:</span>
             <strong className="text-gray-900">{transaction.payment.method}</strong>
           </div>
-          {transaction.payment.cardLast4 && (
-            <div className="flex justify-between">
-              <span className="text-gray-600">Card:</span>
-              <span className="font-mono">**** {transaction.payment.cardLast4} ({transaction.payment.cardType || 'Card'})</span>
-            </div>
-          )}
-          {transaction.payment.chequeNumber && (
-            <div className="flex justify-between">
-              <span className="text-gray-600">Cheque #:</span>
-              <span className="font-mono">#{transaction.payment.chequeNumber} ({transaction.payment.bankName})</span>
-            </div>
-          )}
           <div className="flex justify-between">
-            <span className="text-gray-600">Amount Paid:</span>
-            <span className="font-mono font-bold text-emerald-800">
+            <span className="text-gray-600">{isBuy ? 'Amount Paid Out:' : 'Amount Received:'}</span>
+            <span className="font-mono font-bold text-emerald-800 text-sm">
               ${transaction.payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
           </div>
@@ -163,20 +141,22 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ transaction 
           </div>
           {transaction.discountOrAdjustment !== 0 && (
             <div className="flex justify-between">
-              <span>Adjustment:</span>
+              <span>{isBuy ? 'Adjustment:' : 'Additional Charges:'}</span>
               <span className="font-mono text-gray-800">
                 ${transaction.discountOrAdjustment.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
             </div>
           )}
-          <div className="flex justify-between">
-            <span>Sales Tax ({transaction.taxRatePercent}%):</span>
-            <span className="font-mono font-semibold">
-              ${transaction.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </span>
-          </div>
+          {transaction.taxAmount > 0 && (
+            <div className="flex justify-between">
+              <span>Sales Tax ({transaction.taxRatePercent}%):</span>
+              <span className="font-mono font-semibold">
+                ${transaction.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between pt-2 border-t border-gray-300 text-sm font-black text-gray-900">
-            <span>FINAL TOTAL:</span>
+            <span>{isBuy ? 'FINAL PAYOUT:' : 'FINAL TOTAL:'}</span>
             <span className="font-mono text-base">
               ${transaction.finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
@@ -184,16 +164,16 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ transaction 
         </div>
       </div>
 
-      {/* Legal Disclaimers & Texas DPS Compliance Notice */}
+      {/* Texas DPS Certification */}
       <div className="p-3.5 bg-gray-100 rounded-lg text-[10px] text-gray-600 leading-relaxed border border-gray-300">
-        <strong>TEXAS STATUTORY PRECIOUS METAL DEALER CERTIFICATION:</strong> In compliance with Chapter 1956 of the Texas Occupations Code, the customer certifies that they are the sole lawful owner of all presented items, that items are free from any liens, encumbrances, or claims, and that all identification details provided are true and accurate. Texas Gold Buyers maintains immutable 5+ year archival records for all transactions.
+        <strong>TEXAS STATUTORY PRECIOUS METAL DEALER CERTIFICATION:</strong> In compliance with Chapter 1956 of the Texas Occupations Code, the customer certifies that they are the sole lawful owner of all presented items, free of all liens. Texas Gold Buyers operates under Dallas, TX regulatory jurisdiction.
       </div>
 
       {/* Signatures */}
       <div className="grid grid-cols-2 gap-8 pt-4">
         <div className="space-y-3">
           <div className="border-b border-gray-800 pb-1 text-gray-400 font-mono text-[10px]">
-            {transaction.customerName} (Electronic / Counter Sign)
+            {transaction.customerName} (Counter Sign)
           </div>
           <span className="text-[10px] uppercase font-bold text-gray-700 block">Customer Signature</span>
         </div>
