@@ -55,7 +55,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     }
 
     try {
-      await transactionService.voidTransaction(transaction.id, voidReason, user?.id || 'ADMIN');
+      await transactionService.voidTransaction(transaction.id, voidReason);
       setVoidModalOpen(false);
       if (onTransactionUpdated) onTransactionUpdated();
       onClose();
@@ -252,28 +252,27 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-tgb-navyborder">
             <div className="bg-tgb-darknavy p-4 rounded-xl border border-tgb-navyborder space-y-2 text-xs">
               <span className="font-bold text-white uppercase text-[10px] tracking-wider block">
-                Payment Verification
+                Payment Verification & Method Breakdown
               </span>
-              <div className="flex justify-between text-gray-300">
-                <span>Method:</span>
-                <strong className="text-white">{transaction.payment.method}</strong>
-              </div>
-              {transaction.payment.cardLast4 && (
+              {transaction.payments && transaction.payments.length > 0 ? (
+                <div className="space-y-1.5">
+                  {transaction.payments.map((p, pIdx) => (
+                    <div key={p.id || pIdx} className="flex justify-between items-center text-gray-300 bg-[#071320] p-2 rounded-lg border border-tgb-navyborder/60">
+                      <span>{p.method}:</span>
+                      <span className="font-mono font-bold text-emerald-400">${Number(p.amount).toFixed(2)} {p.referenceNumber ? `(${p.referenceNumber})` : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
                 <div className="flex justify-between text-gray-300">
-                  <span>Card Ending:</span>
-                  <span className="font-mono">**** {transaction.payment.cardLast4} ({transaction.payment.cardType})</span>
+                  <span>Method:</span>
+                  <strong className="text-white">{transaction.payment.method}</strong>
                 </div>
               )}
-              {transaction.payment.chequeNumber && (
-                <div className="flex justify-between text-gray-300">
-                  <span>Cheque:</span>
-                  <span className="font-mono">#{transaction.payment.chequeNumber} ({transaction.payment.bankName})</span>
-                </div>
-              )}
-              <div className="flex justify-between text-gray-300">
-                <span>Disbursed/Collected:</span>
+              <div className="flex justify-between text-gray-300 pt-1 border-t border-tgb-navyborder/60">
+                <span>Total Disbursed/Collected:</span>
                 <span className="font-mono font-bold text-emerald-400">
-                  ${transaction.payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  ${transaction.finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -284,7 +283,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
               </span>
               <div className="text-gray-300 text-[11px] space-y-1">
                 <div>Created: {new Date(transaction.createdAt).toLocaleString()} by {transaction.employeeName}</div>
-                <div>Last Updated: {new Date(transaction.updatedAt).toLocaleString()}</div>
+                <div>Location: {transaction.locationName || '2427 W Mockingbird Ln, Dallas, TX'}</div>
                 <div>Retention Status: <strong className="text-emerald-400">5+ Year DPS Archive Locked</strong></div>
               </div>
             </div>

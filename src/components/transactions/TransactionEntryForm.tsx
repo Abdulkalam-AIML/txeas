@@ -1,24 +1,25 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
   Customer,
   Transaction,
-  TransactionItem,
   TransactionType,
-  PaymentMethod,
   MetalCategory,
-  PredefinedMenuItem,
-  ItemImage,
 } from '@/types';
 import {
   customerService,
   transactionService,
-  itemService,
   fileService,
 } from '@/services';
+import {
+  calculateBuyTransaction,
+  calculateSellTransaction,
+  calculatePaymentSummary,
+  PaymentEntry,
+} from '@/lib/calculations';
 import {
   Plus,
   Trash2,
@@ -43,20 +44,45 @@ import {
   Check,
   ChevronDown,
   Info,
+  Image as ImageIcon,
+  AlertTriangle,
+  ZoomIn,
 } from 'lucide-react';
 import InvoiceViewModal from '@/components/invoices/InvoiceViewModal';
+import Image from 'next/image';
 
 interface TransactionEntryFormProps {
   initialType?: TransactionType;
 }
+
+const PURITY_OPTIONS = ['24K', '22K', '20K', '18K', '14K', '10K', 'Custom'];
+const ITEM_NAMES = [
+  'Gold Ring',
+  'Gold Chain',
+  'Gold Bracelet',
+  'Gold Necklace',
+  'Gold Coin',
+  'Gold Earrings',
+  'Gold Bar / Bullion',
+  'Custom Item',
+];
+const PAYMENT_METHODS: PaymentEntry['method'][] = [
+  'Cash',
+  'Card',
+  'Bank Transfer',
+  'UPI',
+  'Cheque',
+  'Other',
+];
 
 export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
   initialType = 'BUY',
 }) => {
   const router = useRouter();
   const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Mode: BUY (from customer) vs SELL (to customer)
+  // Mode: BUY vs SELL
   const [txType, setTxType] = useState<TransactionType>(initialType);
 
   // Customer State
@@ -71,36 +97,42 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
     driversLicense: '',
   });
 
-  // BUY Mode Specific Calculation State
-  const [buyItemName, setBuyItemName] = useState('14K Gold Scrap / Estate');
-  const [buyCategory, setBuyCategory] = useState<MetalCategory>('Gold');
-  const [buyWeight, setBuyWeight] = useState<number>(4.0);
-  const [buyRate, setBuyRate] = useState<number>(60.0);
-  const [buyCustomerPayout, setBuyCustomerPayout] = useState<number>(140.0);
-  const [buyAdjustmentType, setBuyAdjustmentType] = useState<'none' | 'fixed' | 'percent'>('none');
-  const [buyAdjustmentValue, setBuyAdjustmentValue] = useState<number>(0);
+  // Item Details State
+  const [itemName, setItemName] = useState('Gold Chain');
+  const [customItemName, setCustomItemName] = useState('');
+  const [itemType, setItemType] = useState('Jewelry');
+  const [itemDescription, setItemDescription] = useState('');
+  const [purity, setPurity] = useState('22K');
+  const [customPurity, setCustomPurity] = useState('');
 
-  // SELL Mode Specific Calculation State
-  const [sellItemName, setSellItemName] = useState('14K Gold Chain / Bullion');
-  const [sellCategory, setSellCategory] = useState<MetalCategory>('Gold');
-  const [sellWeight, setSellWeight] = useState<number>(4.0);
-  const [sellBasePrice, setSellBasePrice] = useState<number>(250.0);
-  const [sellAdditionalChargePercent, setSellAdditionalChargePercent] = useState<number>(50.0);
-  const [sellTaxRatePercent, setSellTaxRatePercent] = useState<number>(8.5);
+  // Controlled String Inputs (Fixes auto-0 / 04 input bug)
+  const [weightInput, setWeightInput] = useState('4.00');
+  const [rateInput, setRateInput] = useState('60.00');
+  const [marginPercentInput, setMarginPercentInput] = useState('20');
+  const [baseCostInput, setBaseCostInput] = useState('240.00');
 
-  // Payment Details
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
-  const [paymentNotes, setPaymentNotes] = useState('');
-  const [cardLast4, setCardLast4] = useState('');
-  const [chequeNumber, setChequeNumber] = useState('');
-  const [bankName, setBankName] = useState('');
+  // Image Upload State
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [showImageZoom, setShowImageZoom] = useState(false);
 
-  // UI state
+  // Multiple Payment Methods State
+  const [payments, setPayments] = useState<PaymentEntry[]>([
+    {
+      id: `PAY-INIT-${Date.now()}`,
+      method: 'Cash',
+      amount: 192.0,
+      referenceNumber: '',
+      notes: '',
+    },
+  ]);
+
+  // Transaction Notes & UI State
+  const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [savedTransaction, setSavedTransaction] = useState<Transaction | null>(null);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [isCompletedSuccess, setIsCompletedSuccess] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Load initial customers
   useEffect(() => {
@@ -112,7 +144,7 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
     });
   }, []);
 
-  // Filtered customer search list
+  // Filtered customer search
   const filteredCustomers = customerSearchQuery.trim()
     ? customers.filter(
         (c) =>
@@ -153,23 +185,85 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
     }
   };
 
-  // BUY Calculations
-  const buyMarketValue = +(Math.max(0, buyWeight) * Math.max(0, buyRate)).toFixed(2);
-  let buyAdjustmentAmount = 0;
-  if (buyAdjustmentType === 'percent') {
-    buyAdjustmentAmount = +(buyCustomerPayout * (buyAdjustmentValue / 100)).toFixed(2);
-  } else if (buyAdjustmentType === 'fixed') {
-    buyAdjustmentAmount = +buyAdjustmentValue;
-  }
-  const finalBuyPayout = +(Math.max(0, buyCustomerPayout + buyAdjustmentAmount)).toFixed(2);
-  const buyGrossMargin = +(buyMarketValue - finalBuyPayout).toFixed(2);
-  const buyMarginPercent = buyMarketValue > 0 ? +((buyGrossMargin / buyMarketValue) * 100).toFixed(2) : 0;
+  // Image Upload Handler
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    try {
+      setIsUploadingImage(true);
+      const processed = await fileService.processUploadedFile(file, 'Front');
+      setImagePreview(processed.url);
+    } catch (err: any) {
+      alert(err.message || 'Image upload failed');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
-  // SELL Calculations
-  const sellAdditionalChargeAmount = +(Math.max(0, sellBasePrice) * (Math.max(0, sellAdditionalChargePercent) / 100)).toFixed(2);
-  const sellSubtotal = +(Math.max(0, sellBasePrice) + sellAdditionalChargeAmount).toFixed(2);
-  const sellTaxAmount = +(sellSubtotal * (Math.max(0, sellTaxRatePercent) / 100)).toFixed(2);
-  const finalSellTotal = +(sellSubtotal + sellTaxAmount).toFixed(2);
+  // Dynamic Numeric Parsing
+  const parsedWeight = Math.max(0, parseFloat(weightInput) || 0);
+  const parsedRate = Math.max(0, parseFloat(rateInput) || 0);
+  const parsedMarginPct = Math.max(0, parseFloat(marginPercentInput) || 0);
+  const parsedBaseCost = Math.max(0, parseFloat(baseCostInput) || 0);
+
+  // Centralized Calculations
+  const effectivePurity = purity === 'Custom' ? customPurity || 'Custom Gold' : purity;
+  const effectiveItemName = itemName === 'Custom Item' ? customItemName || 'Custom Gold Piece' : itemName;
+
+  const buyCalculation = calculateBuyTransaction({
+    weight: parsedWeight,
+    ratePerGram: parsedRate,
+    marginPercent: parsedMarginPct,
+  });
+
+  const sellCalculation = calculateSellTransaction({
+    weight: parsedWeight,
+    ratePerGram: parsedRate,
+    baseCost: parsedBaseCost > 0 ? parsedBaseCost : +(parsedWeight * parsedRate).toFixed(2),
+    marginPercent: parsedMarginPct,
+  });
+
+  const targetTotal = txType === 'BUY' ? buyCalculation.amountPaidToCustomer : sellCalculation.sellingAmount;
+
+  // Auto-sync first payment amount if only 1 payment row exists
+  useEffect(() => {
+    if (payments.length === 1) {
+      setPayments([{ ...payments[0], amount: targetTotal }]);
+    }
+  }, [targetTotal, txType]);
+
+  const paymentSummary = calculatePaymentSummary(targetTotal, payments);
+
+  // Add / Remove Payment Rows
+  const handleAddPaymentRow = () => {
+    const remaining = Math.max(0, paymentSummary.remainingAmount);
+    setPayments([
+      ...payments,
+      {
+        id: `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        method: 'Cash',
+        amount: remaining,
+        referenceNumber: '',
+        notes: '',
+      },
+    ]);
+  };
+
+  const handleRemovePaymentRow = (index: number) => {
+    if (payments.length <= 1) {
+      alert('At least one payment method is required.');
+      return;
+    }
+    const updated = [...payments];
+    updated.splice(index, 1);
+    setPayments(updated);
+  };
+
+  const handleUpdatePayment = (index: number, fields: Partial<PaymentEntry>) => {
+    const updated = [...payments];
+    updated[index] = { ...updated[index], ...fields };
+    setPayments(updated);
+  };
 
   // Submit Transaction
   const handleSaveTransaction = async () => {
@@ -178,62 +272,48 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
       return;
     }
 
+    if (parsedWeight <= 0) {
+      alert('Please enter a valid positive weight.');
+      return;
+    }
+
+    if (parsedRate <= 0 && parsedBaseCost <= 0) {
+      alert('Please enter a valid rate per gram or base cost.');
+      return;
+    }
+
+    if (!paymentSummary.isExact && paymentSummary.isShort) {
+      if (!confirm(`Payment is short by $${paymentSummary.difference.toFixed(2)}. Proceed as partially paid?`)) {
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
-      let txItem: TransactionItem;
-      let subtotalAmount = 0;
-      let finalTotalAmount = 0;
-      let taxAmountVal = 0;
-      let taxRateVal = 0;
-      let adjustmentVal = 0;
+      const activeCalc = txType === 'BUY' ? buyCalculation : sellCalculation;
+      const finalAmount = targetTotal;
 
-      if (txType === 'BUY') {
-        subtotalAmount = buyMarketValue;
-        finalTotalAmount = finalBuyPayout;
-        adjustmentVal = buyAdjustmentAmount;
-        taxAmountVal = 0;
-        taxRateVal = 0;
-
-        txItem = {
-          id: `ITEM-${Date.now()}`,
-          isCustom: true,
-          category: buyCategory,
-          name: buyItemName,
-          description: `Assayed weight: ${buyWeight}g @ $${buyRate}/g market benchmark. Customer Payout: $${finalBuyPayout}. Gross Margin: $${buyGrossMargin} (${buyMarginPercent}%).`,
-          material: 'Assayed Gold Alloy',
-          purity: 'Standard Assay',
-          weight: buyWeight,
-          unit: 'g',
-          quantity: 1,
-          estimatedMarketValue: buyMarketValue,
-          offeredUnitPrice: buyWeight > 0 ? +(finalBuyPayout / buyWeight).toFixed(2) : finalBuyPayout,
-          totalPrice: finalBuyPayout,
-          images: [],
-        };
-      } else {
-        subtotalAmount = sellSubtotal;
-        finalTotalAmount = finalSellTotal;
-        taxAmountVal = sellTaxAmount;
-        taxRateVal = sellTaxRatePercent;
-        adjustmentVal = sellAdditionalChargeAmount;
-
-        txItem = {
-          id: `ITEM-${Date.now()}`,
-          isCustom: true,
-          category: sellCategory,
-          name: sellItemName,
-          description: `Base Price: $${sellBasePrice} + Additional Charge (${sellAdditionalChargePercent}%: $${sellAdditionalChargeAmount}) + Sales Tax (${sellTaxRatePercent}%: $${sellTaxAmount}).`,
-          material: 'Precious Metals Inventory',
-          purity: 'Minted / Certified',
-          weight: sellWeight,
-          unit: 'g',
-          quantity: 1,
-          estimatedMarketValue: sellBasePrice,
-          offeredUnitPrice: sellSubtotal,
-          totalPrice: sellSubtotal,
-          images: [],
-        };
-      }
+      const txItem = {
+        id: `ITEM-${Date.now()}`,
+        isCustom: itemName === 'Custom Item',
+        category: 'Gold' as MetalCategory,
+        name: effectiveItemName,
+        itemType: itemType,
+        description: itemDescription || `${effectivePurity} ${effectiveItemName}, weight: ${parsedWeight}g @ $${parsedRate}/g.`,
+        material: 'Gold Alloy',
+        purity: effectivePurity,
+        weight: parsedWeight,
+        unit: 'g' as const,
+        quantity: 1,
+        ratePerGram: parsedRate,
+        estimatedMarketValue: txType === 'BUY' ? buyCalculation.grossAmount : sellCalculation.baseCost,
+        offeredUnitPrice: txType === 'BUY' ? +(buyCalculation.amountPaidToCustomer / (parsedWeight || 1)).toFixed(2) : sellCalculation.sellingAmount,
+        totalPrice: finalAmount,
+        imageUrl: imagePreview || undefined,
+        images: imagePreview
+          ? [{ id: `IMG-${Date.now()}`, url: imagePreview, tag: 'Front' as const, fileName: 'item.png', uploadedAt: new Date().toISOString() }]
+          : [],
+      };
 
       const newTx = await transactionService.create({
         type: txType,
@@ -245,27 +325,29 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
         employeeId: user?.id || 'e1000000-0000-0000-0000-000000000001',
         employeeName: user?.name || 'Alexander Sterling',
         locationId: user?.locationId || 'c1000000-0000-0000-0000-000000000001',
-        locationName: user?.locationName || 'Dallas Flagship — Uptown',
+        locationName: 'Dallas Flagship — 2427 W Mockingbird Ln',
         transactionDate: new Date().toISOString(),
         status: 'COMPLETED',
         items: [txItem],
-        subtotal: subtotalAmount,
-        discountOrAdjustment: adjustmentVal,
-        taxRatePercent: taxRateVal,
-        taxAmount: taxAmountVal,
-        finalTotal: finalTotalAmount,
+        subtotal: txType === 'BUY' ? buyCalculation.grossAmount : sellCalculation.baseCost,
+        discountOrAdjustment: 0,
+        taxRatePercent: 0,
+        taxAmount: 0,
+        finalTotal: finalAmount,
+        marginPercent: parsedMarginPct,
+        marginAmount: activeCalc.marginAmount,
+        profit: activeCalc.profit,
+        imageUrl: imagePreview || undefined,
+        payments: payments,
         payment: {
-          method: paymentMethod,
-          amount: finalTotalAmount,
-          status: 'COMPLETED',
-          referenceNumber: `REF-${Date.now().toString().slice(-6)}`,
+          method: payments[0]?.method || 'Cash',
+          amount: paymentSummary.totalPaid,
+          status: paymentSummary.paymentStatus === 'Fully Paid' ? 'COMPLETED' : 'PENDING',
+          referenceNumber: payments[0]?.referenceNumber || `REF-${Date.now().toString().slice(-6)}`,
           paidAt: new Date().toISOString(),
-          cardLast4: paymentMethod === 'CARD' ? cardLast4 || '4242' : undefined,
-          chequeNumber: paymentMethod === 'CHEQUE' ? chequeNumber || '5001' : undefined,
-          bankName: paymentMethod === 'CHEQUE' ? bankName || 'Chase Bank' : undefined,
-          notes: paymentNotes,
+          notes: notes || payments[0]?.notes,
         },
-        notes: paymentNotes,
+        notes: notes,
         termsAccepted: true,
       });
 
@@ -281,7 +363,7 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
   // SUCCESS COMPLETION SCREEN
   if (isCompletedSuccess && savedTransaction) {
     return (
-      <div className="max-w-2xl mx-auto my-6 bg-[#0a1827] border border-tgb-gold/40 rounded-3xl p-8 sm:p-12 shadow-2xl text-center space-y-6 animate-fade-in">
+      <div className="max-w-2xl mx-auto my-6 bg-[#0a1827] border border-tgb-gold/40 rounded-3xl p-8 sm:p-10 shadow-2xl text-center space-y-6 animate-fade-in">
         <div className="w-20 h-20 rounded-full bg-emerald-500/15 border-2 border-emerald-400 text-emerald-400 flex items-center justify-center mx-auto animate-pulse">
           <CheckCircle2 className="w-10 h-10" />
         </div>
@@ -294,7 +376,7 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
             TRANSACTION COMPLETED
           </h2>
           <p className="text-xs text-gray-400">
-            Texas Gold Buyers • 2427 W Mockingbird Ln, Dallas, TX 75235
+            Texas Gold Buyers • 2427 W Mockingbird Ln, Dallas, TX 75235 • +1 (469) 453-5339
           </p>
         </div>
 
@@ -311,34 +393,53 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
           <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2">
             <span className="text-gray-400">Transaction Type:</span>
             <span className={`font-bold ${savedTransaction.type === 'BUY' ? 'text-emerald-400' : 'text-amber-400'}`}>
-              {savedTransaction.type === 'BUY' ? 'BUY FROM CUSTOMER (Payout)' : 'SELL TO CUSTOMER (Retail)'}
+              {savedTransaction.type === 'BUY' ? 'BUY GOLD (Customer Payout)' : 'SELL GOLD (Customer Sale)'}
             </span>
           </div>
           <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2">
-            <span className="text-gray-400">{savedTransaction.type === 'BUY' ? 'Total Paid to Customer:' : 'Total Received from Customer:'}</span>
+            <span className="text-gray-400">Item & Purity:</span>
+            <span className="font-bold text-white font-sans">
+              {savedTransaction.items[0]?.purity} {savedTransaction.items[0]?.name} ({savedTransaction.items[0]?.weight}g)
+            </span>
+          </div>
+          <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2">
+            <span className="text-gray-400">Total Transaction Amount:</span>
             <span className="font-bold text-xl text-white font-sans">
               ${savedTransaction.finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
           </div>
-          {savedTransaction.type === 'BUY' && (
-            <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2 text-emerald-400">
-              <span>Your Gross Margin (Internal):</span>
-              <span className="font-bold font-sans">
-                ${buyGrossMargin.toLocaleString(undefined, { minimumFractionDigits: 2 })} ({buyMarginPercent}%)
-              </span>
+          <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2 text-emerald-400">
+            <span>Store Margin & Expected Profit:</span>
+            <span className="font-bold font-sans">
+              ${(savedTransaction.profit || buyCalculation.profit).toLocaleString(undefined, { minimumFractionDigits: 2 })} ({parsedMarginPct}%)
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Payment Breakdown:</span>
+            <span className="font-bold text-white">
+              {savedTransaction.payments?.map((p) => `${p.method}: $${p.amount.toFixed(2)}`).join(' • ') || savedTransaction.payment.method}
+            </span>
+          </div>
+
+          {/* Item Image Thumbnail if present */}
+          {savedTransaction.imageUrl && (
+            <div className="pt-2 flex items-center gap-3">
+              <span className="text-gray-400">Item Photo:</span>
+              <div
+                onClick={() => setShowImageZoom(true)}
+                className="relative w-12 h-12 rounded-lg overflow-hidden border border-tgb-gold/40 cursor-pointer hover:opacity-80"
+              >
+                <Image src={savedTransaction.imageUrl} alt="Gold Item" fill className="object-cover" />
+              </div>
             </div>
           )}
-          <div className="flex justify-between">
-            <span className="text-gray-400">Payment Method:</span>
-            <span className="font-bold text-white">{savedTransaction.payment.method} ({savedTransaction.payment.status})</span>
-          </div>
         </div>
 
         {/* Action Buttons */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
           <button
             onClick={() => setInvoiceModalOpen(true)}
-            className="py-3 px-4 bg-tgb-gold hover:bg-tgb-goldlight text-tgb-darknavy font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            className="py-3.5 px-4 bg-tgb-gold hover:bg-tgb-goldlight text-tgb-darknavy font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>PRINT RECEIPT</span>
@@ -352,7 +453,7 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
                 router.push('/employee/transactions');
               }
             }}
-            className="py-3 px-4 bg-tgb-navy hover:bg-tgb-navylight border border-tgb-navyborder text-gray-200 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            className="py-3.5 px-4 bg-tgb-navy hover:bg-tgb-navylight border border-tgb-navyborder text-gray-200 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <History className="w-4 h-4 text-tgb-gold" />
             <span>VIEW TRANSACTIONS</span>
@@ -362,8 +463,9 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
             onClick={() => {
               setIsCompletedSuccess(false);
               setSavedTransaction(null);
+              setImagePreview(null);
             }}
-            className="py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-tgb-darknavy font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            className="py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-tgb-darknavy font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>NEW TRANSACTION</span>
@@ -395,15 +497,20 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
               }`}
             >
               {txType === 'BUY' ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
-              {txType === 'BUY' ? 'BUY FROM CUSTOMER' : 'SELL TO CUSTOMER'}
+              {txType === 'BUY' ? 'BUY GOLD FROM CUSTOMER' : 'SELL GOLD TO CUSTOMER'}
             </span>
           </div>
           <h1 className="text-2xl font-bold text-white font-display mt-1">
-            {txType === 'BUY' ? 'Buy Gold & Precious Metals' : 'Sell Inventory to Customer'}
+            {txType === 'BUY' ? 'Buy Gold & Precious Metals' : 'Sell Gold & Estate Jewelry'}
           </h1>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {txType === 'BUY'
+              ? 'Purchase scrap, bullion, coins, or jewelry with dynamic margin and instant payout.'
+              : 'Retail sale from vault stock with margin calculation and item image tracking.'}
+          </p>
         </div>
 
-        {/* Large Touch-Friendly Mode Switcher */}
+        {/* Big Touch-Friendly Mode Switcher */}
         <div className="flex bg-[#071320] rounded-2xl p-1.5 border border-tgb-navyborder shrink-0 w-full sm:w-auto">
           <button
             type="button"
@@ -430,7 +537,7 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
         </div>
       </div>
 
-      {/* 2. STEP 1: CUSTOMER SELECTION */}
+      {/* 2. STEP 1: CUSTOMER INFORMATION */}
       <div className="bg-tgb-navy border border-tgb-navyborder rounded-3xl p-6 shadow-xl space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-tgb-navyborder">
           <div className="flex items-center gap-2">
@@ -450,7 +557,6 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
           </button>
         </div>
 
-        {/* Selected Customer Card or Search */}
         {selectedCustomer ? (
           <div className="bg-[#071320] border border-tgb-gold/40 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -482,7 +588,7 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
               <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search customer by name, phone number, or email..."
+                placeholder="Search customer by name, phone number, email, or DL #..."
                 value={customerSearchQuery}
                 onChange={(e) => setCustomerSearchQuery(e.target.value)}
                 className="w-full bg-[#071320] border border-tgb-navyborder focus:border-tgb-gold rounded-xl pl-10 pr-4 py-3 text-white text-xs sm:text-sm placeholder:text-gray-500 focus:outline-none"
@@ -513,316 +619,498 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
         )}
       </div>
 
-      {/* 3. STEP 2: TRANSACTION DETAILS (BUY vs SELL) */}
-      {txType === 'BUY' ? (
-        /* ==================== BUY WORKFLOW ==================== */
-        <div className="bg-tgb-navy border border-tgb-navyborder rounded-3xl p-6 shadow-xl space-y-6">
-          <div className="flex items-center gap-2 pb-3 border-b border-tgb-navyborder">
-            <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center">
-              2
-            </span>
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-              Gold Weight & Market Valuation
-            </h2>
-          </div>
-
-          {/* Item Description & Karat */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
-                Gold / Item Type
-              </label>
-              <select
-                value={buyItemName}
-                onChange={(e) => {
-                  setBuyItemName(e.target.value);
-                  // preset typical rates
-                  if (e.target.value.includes('10K')) setBuyRate(34.0);
-                  else if (e.target.value.includes('14K')) setBuyRate(48.0);
-                  else if (e.target.value.includes('18K')) setBuyRate(62.0);
-                  else if (e.target.value.includes('22K') || e.target.value.includes('24K')) setBuyRate(81.0);
-                  else if (e.target.value.includes('Silver')) setBuyRate(0.95);
-                }}
-                className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white text-xs sm:text-sm focus:border-tgb-gold focus:outline-none cursor-pointer"
-              >
-                <option value="10K Gold Scrap / Jewelry">10K Gold Scrap / Estate</option>
-                <option value="14K Gold Scrap / Estate">14K Gold Scrap / Estate</option>
-                <option value="18K Gold Fine Jewelry">18K Gold Fine Jewelry</option>
-                <option value="22K / 24K Pure Gold Bullion">22K / 24K Pure Gold Bullion</option>
-                <option value="999 Fine Silver Bar">999 Fine Silver Bar</option>
-                <option value="Sterling Silver Jewelry (.925)">Sterling Silver Jewelry (.925)</option>
-                <option value="Custom Gold / Diamond Piece">Custom Gold / Diamond Piece</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
-                Weight in Grams (g)
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={buyWeight || ''}
-                  onChange={(e) => {
-                    const w = parseFloat(e.target.value) || 0;
-                    setBuyWeight(w);
-                    // auto calculate suggested payout (e.g. ~60% of market)
-                    const mv = w * buyRate;
-                    setBuyCustomerPayout(+(mv * 0.6).toFixed(2));
-                  }}
-                  placeholder="e.g. 4.00"
-                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white font-mono text-base font-bold focus:border-tgb-gold focus:outline-none"
-                />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
-                  GRAMS
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Rate & Customer Payout Inputs */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
-                Market Rate ($ / gram)
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={buyRate || ''}
-                  onChange={(e) => {
-                    const r = parseFloat(e.target.value) || 0;
-                    setBuyRate(r);
-                    const mv = buyWeight * r;
-                    setBuyCustomerPayout(+(mv * 0.6).toFixed(2));
-                  }}
-                  placeholder="e.g. 60.00"
-                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white font-mono text-base font-bold focus:border-tgb-gold focus:outline-none"
-                />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
-                  $/g
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center justify-between">
-                <span>Customer Payout (Amount Paid to Customer)</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-400 font-bold text-base">
-                  $
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={buyCustomerPayout || ''}
-                  onChange={(e) => setBuyCustomerPayout(parseFloat(e.target.value) || 0)}
-                  placeholder="e.g. 140.00"
-                  className="w-full bg-[#071320] border-2 border-emerald-500/60 focus:border-emerald-400 rounded-xl pl-8 pr-3.5 py-3 text-white font-mono text-lg font-black focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* GROSS MARGIN & PROFIT CARD (Visible only to authorized staff) */}
-          <div className="bg-[#071320] border border-tgb-gold/40 rounded-2xl p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-            <div className="space-y-1 border-r border-tgb-navyborder/60">
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-                Market Value
-              </span>
-              <span className="text-lg font-bold text-white font-mono">
-                ${buyMarketValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </span>
-              <span className="text-[10px] text-gray-500 block">{buyWeight}g × ${buyRate}/g</span>
-            </div>
-
-            <div className="space-y-1 border-r border-tgb-navyborder/60">
-              <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
-                Customer Payout
-              </span>
-              <span className="text-lg font-bold text-emerald-400 font-mono">
-                ${finalBuyPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </span>
-              <span className="text-[10px] text-gray-500 block">Money Paid Out</span>
-            </div>
-
-            <div className="space-y-1 border-r border-tgb-navyborder/60">
-              <span className="text-[11px] font-bold text-tgb-gold uppercase tracking-wider block">
-                Your Gross Margin
-              </span>
-              <span className="text-xl font-black text-tgb-gold font-mono">
-                ${buyGrossMargin.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </span>
-              <span className="text-[10px] text-gray-500 block">Market - Payout</span>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider block">
-                Margin %
-              </span>
-              <span className="text-lg font-bold text-cyan-400 font-mono">
-                {buyMarginPercent}%
-              </span>
-              <span className="text-[10px] text-gray-500 block">Profit Share</span>
-            </div>
-          </div>
+      {/* 3. STEP 2: ITEM DETAILS, PURITY, & IMAGE UPLOAD */}
+      <div className="bg-tgb-navy border border-tgb-navyborder rounded-3xl p-6 shadow-xl space-y-6">
+        <div className="flex items-center gap-2 pb-3 border-b border-tgb-navyborder">
+          <span className="w-6 h-6 rounded-full bg-tgb-gold/20 text-tgb-gold text-xs font-bold flex items-center justify-center">
+            2
+          </span>
+          <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+            Item Details, Purity & Photos
+          </h2>
         </div>
-      ) : (
-        /* ==================== SELL WORKFLOW ==================== */
-        <div className="bg-tgb-navy border border-tgb-navyborder rounded-3xl p-6 shadow-xl space-y-6">
-          <div className="flex items-center gap-2 pb-3 border-b border-tgb-navyborder">
-            <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center justify-center">
-              2
-            </span>
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-              Retail Sale Pricing & Tax Breakdown
-            </h2>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
-                Item Description
-              </label>
+        {/* Item Selection & Custom Name */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+              Item Name
+            </label>
+            <select
+              value={itemName}
+              onChange={(e) => setItemName(e.target.value)}
+              className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white text-xs sm:text-sm focus:border-tgb-gold focus:outline-none cursor-pointer"
+            >
+              {ITEM_NAMES.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            {itemName === 'Custom Item' && (
               <input
                 type="text"
-                value={sellItemName}
-                onChange={(e) => setSellItemName(e.target.value)}
-                placeholder="e.g. 14K Gold Bracelet"
-                className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white text-xs sm:text-sm focus:border-tgb-gold focus:outline-none"
+                placeholder="Enter custom item name..."
+                value={customItemName}
+                onChange={(e) => setCustomItemName(e.target.value)}
+                className="mt-2 w-full bg-[#071320] border border-tgb-gold rounded-xl px-3.5 py-2 text-white text-xs"
               />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
-                Base Price ($)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">
-                  $
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={sellBasePrice || ''}
-                  onChange={(e) => setSellBasePrice(parseFloat(e.target.value) || 0)}
-                  placeholder="e.g. 250.00"
-                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl pl-8 pr-3.5 py-3 text-white font-mono text-base font-bold focus:border-tgb-gold focus:outline-none"
-                />
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Additional Charge % & Sales Tax */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                  Additional Charge %
-                </label>
-                <span className="text-[10px] text-gray-400">Enter percentage, not $</span>
-              </div>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={sellAdditionalChargePercent || ''}
-                  onChange={(e) => setSellAdditionalChargePercent(parseFloat(e.target.value) || 0)}
-                  placeholder="e.g. 50"
-                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white font-mono text-base font-bold focus:border-tgb-gold focus:outline-none"
-                />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-amber-400 font-bold">
-                  % (+${sellAdditionalChargeAmount.toFixed(2)})
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
-                  Sales Tax Rate %
-                </label>
-                <span className="text-[10px] text-gray-400">Texas Standard 8.5%</span>
-              </div>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={sellTaxRatePercent || ''}
-                  onChange={(e) => setSellTaxRatePercent(parseFloat(e.target.value) || 0)}
-                  placeholder="8.5"
-                  className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white font-mono text-base font-bold focus:border-tgb-gold focus:outline-none"
-                />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">
-                  % (+${sellTaxAmount.toFixed(2)})
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* SELL FINANCIAL BREAKDOWN CARD */}
-          <div className="bg-[#071320] border border-tgb-gold/40 rounded-2xl p-5 space-y-2.5 font-mono text-xs">
-            <div className="flex justify-between text-gray-300 pb-1.5 border-b border-tgb-navyborder/80">
-              <span>Base Price:</span>
-              <span className="font-bold">${sellBasePrice.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-amber-400 pb-1.5 border-b border-tgb-navyborder/80">
-              <span>Additional Charge ({sellAdditionalChargePercent}%):</span>
-              <span className="font-bold">+${sellAdditionalChargeAmount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-gray-300 pb-1.5 border-b border-tgb-navyborder/80">
-              <span>Subtotal:</span>
-              <span className="font-bold">${sellSubtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-gray-300 pb-1.5 border-b border-tgb-navyborder/80">
-              <span>Sales Tax ({sellTaxRatePercent}%):</span>
-              <span className="font-bold">+${sellTaxAmount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-white text-base font-black pt-1">
-              <span>CUSTOMER TOTAL:</span>
-              <span className="text-tgb-gold font-sans text-xl">${finalSellTotal.toFixed(2)}</span>
-            </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+              Item Category / Type
+            </label>
+            <select
+              value={itemType}
+              onChange={(e) => setItemType(e.target.value)}
+              className="w-full bg-[#071320] border border-tgb-navyborder rounded-xl px-3.5 py-3 text-white text-xs sm:text-sm focus:border-tgb-gold focus:outline-none cursor-pointer"
+            >
+              <option value="Jewelry">Gold Jewelry</option>
+              <option value="Bullion">Gold Bullion / Minted Bars</option>
+              <option value="Coins">Gold Coins / Sovereigns</option>
+              <option value="Scrap">Dental / Scrap Gold</option>
+              <option value="Estate">Estate / Heirloom</option>
+            </select>
           </div>
         </div>
-      )}
 
-      {/* 4. STEP 3: PAYMENT METHOD & FINAL CONFIRMATION */}
+        {/* Gold Purity Selector */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-tgb-gold uppercase tracking-wider flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" /> Gold Purity <span className="text-rose-400">*</span>
+          </label>
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+            {PURITY_OPTIONS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPurity(p)}
+                className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                  purity === p
+                    ? 'bg-tgb-gold text-tgb-darknavy border-tgb-gold shadow-md scale-[1.02]'
+                    : 'bg-[#071320] text-gray-300 border-tgb-navyborder hover:border-tgb-gold/40'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          {purity === 'Custom' && (
+            <input
+              type="text"
+              placeholder="e.g. 21.6K (90.0%) or 916 Hallmark"
+              value={customPurity}
+              onChange={(e) => setCustomPurity(e.target.value)}
+              className="w-full bg-[#071320] border border-tgb-gold rounded-xl px-3.5 py-2.5 text-white text-xs"
+            />
+          )}
+        </div>
+
+        {/* Image Upload Drag & Drop Box */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center justify-between">
+            <span>Gold Item Photo (Optional)</span>
+            <span className="text-[10px] text-gray-400">JPG, PNG, WEBP (Max 10MB)</span>
+          </label>
+
+          {imagePreview ? (
+            <div className="bg-[#071320] border border-tgb-gold/40 rounded-2xl p-3 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div
+                  onClick={() => setShowImageZoom(true)}
+                  className="relative w-14 h-14 rounded-xl overflow-hidden border border-tgb-navyborder cursor-pointer group"
+                >
+                  <Image src={imagePreview} alt="Item Preview" fill className="object-cover" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <ZoomIn className="w-4 h-4 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-white block">Item Image Uploaded</span>
+                  <span className="text-[10px] text-emerald-400">✓ Verified Asset Attached</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="py-1.5 px-3 bg-tgb-navy border border-tgb-navyborder text-gray-300 hover:text-white rounded-lg text-xs font-semibold"
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImagePreview(null)}
+                  className="p-1.5 text-rose-400 hover:bg-rose-500/10 rounded-lg"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  const file = e.dataTransfer.files[0];
+                  fileService.processUploadedFile(file).then((p) => setImagePreview(p.url));
+                }
+              }}
+              className="border-2 border-dashed border-tgb-navyborder hover:border-tgb-gold/60 rounded-2xl p-6 text-center cursor-pointer bg-[#071320]/60 transition-all space-y-2"
+            >
+              <div className="w-10 h-10 rounded-full bg-tgb-gold/10 text-tgb-gold flex items-center justify-center mx-auto">
+                <Upload className="w-5 h-5" />
+              </div>
+              <div className="text-xs text-gray-300 font-semibold">
+                Drag and drop gold photo here, or <span className="text-tgb-gold">Browse Files</span>
+              </div>
+              <div className="text-[10px] text-gray-500">
+                Front, hallmark, or scale verification photo
+              </div>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/webp"
+            className="hidden"
+            onChange={handleImageFileChange}
+          />
+        </div>
+      </div>
+
+      {/* 4. STEP 3: TRANSACTION VALUATION & MARGIN (BUY vs SELL) */}
       <div className="bg-tgb-navy border border-tgb-navyborder rounded-3xl p-6 shadow-xl space-y-6">
         <div className="flex items-center gap-2 pb-3 border-b border-tgb-navyborder">
           <span className="w-6 h-6 rounded-full bg-tgb-gold/20 text-tgb-gold text-xs font-bold flex items-center justify-center">
             3
           </span>
           <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-            Settlement & Payment Method
+            {txType === 'BUY' ? 'Gold Weight, Rate & Buy Margin' : 'Base Cost, Selling Rate & Sale Margin'}
           </h2>
         </div>
 
-        {/* Big Touch-Friendly Payment Method Buttons */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {(['CASH', 'CARD', 'WIRE', 'CHEQUE'] as PaymentMethod[]).map((method) => (
-            <button
-              key={method}
-              type="button"
-              onClick={() => setPaymentMethod(method)}
-              className={`p-4 rounded-2xl border text-center transition-all cursor-pointer font-bold text-xs uppercase tracking-wider flex flex-col items-center justify-center gap-2 ${
-                paymentMethod === method
-                  ? 'bg-tgb-gold text-tgb-darknavy border-tgb-gold shadow-lg scale-[1.02]'
-                  : 'bg-[#071320] text-gray-300 border-tgb-navyborder hover:border-tgb-gold/40'
+        {/* Dynamic Inputs (Clean Controlled Strings - No 04 bug!) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+              Weight (g) <span className="text-rose-400">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={weightInput}
+                onChange={(e) => setWeightInput(e.target.value.replace(/[^0-9.]/g, ''))}
+                placeholder="e.g. 4.00"
+                className="w-full bg-[#071320] border border-tgb-navyborder focus:border-tgb-gold rounded-xl px-3.5 py-3 text-white font-mono text-base font-bold focus:outline-none"
+              />
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
+                GRAMS
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+              Gold Rate ($ / g) <span className="text-rose-400">*</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold">
+                $
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={rateInput}
+                onChange={(e) => setRateInput(e.target.value.replace(/[^0-9.]/g, ''))}
+                placeholder="e.g. 60.00"
+                className="w-full bg-[#071320] border border-tgb-navyborder focus:border-tgb-gold rounded-xl pl-8 pr-3.5 py-3 text-white font-mono text-base font-bold focus:outline-none"
+              />
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
+                / g
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-tgb-gold uppercase tracking-wider">
+              Store Margin % <span className="text-rose-400">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={marginPercentInput}
+                onChange={(e) => setMarginPercentInput(e.target.value.replace(/[^0-9.]/g, ''))}
+                placeholder="e.g. 20"
+                className="w-full bg-[#071320] border-2 border-tgb-gold/60 focus:border-tgb-gold rounded-xl px-3.5 py-3 text-white font-mono text-base font-bold focus:outline-none"
+              />
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-tgb-gold font-bold">
+                %
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 3 HIGHLY VISIBLE REQUIRED VALUES IN SUMMARY CARD */}
+        <div className="bg-[#071320] border-2 border-tgb-gold/50 rounded-2xl p-6 shadow-2xl space-y-4">
+          <div className="flex items-center justify-between border-b border-tgb-navyborder/80 pb-3">
+            <span className="text-xs font-bold uppercase tracking-widest text-gray-300">
+              Transaction Economics Summary
+            </span>
+            <span className="text-[11px] font-bold text-tgb-gold bg-tgb-gold/10 px-2.5 py-0.5 rounded-full border border-tgb-gold/30">
+              Live Verified Math
+            </span>
+          </div>
+
+          {txType === 'BUY' ? (
+            /* BUY SUMMARY BREAKDOWN */
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+              <div className="space-y-1 border-r border-tgb-navyborder/60">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                  Gross Gold Value
+                </span>
+                <span className="text-base sm:text-lg font-bold text-white font-mono">
+                  ${buyCalculation.grossAmount.toFixed(2)}
+                </span>
+                <span className="text-[9px] text-gray-500 block">{parsedWeight}g × ${parsedRate}/g</span>
+              </div>
+
+              <div className="space-y-1 border-r border-tgb-navyborder/60">
+                <span className="text-[10px] font-bold text-tgb-gold uppercase tracking-wider block">
+                  Margin %
+                </span>
+                <span className="text-base sm:text-lg font-bold text-tgb-gold font-mono">
+                  {buyCalculation.marginPercent.toFixed(2)}%
+                </span>
+                <span className="text-[9px] text-gray-500 block">Store Retained</span>
+              </div>
+
+              <div className="space-y-1 border-r border-tgb-navyborder/60">
+                <span className="text-[10px] font-bold text-tgb-gold uppercase tracking-wider block">
+                  Margin Amount
+                </span>
+                <span className="text-base sm:text-lg font-bold text-tgb-gold font-mono">
+                  ${buyCalculation.marginAmount.toFixed(2)}
+                </span>
+                <span className="text-[9px] text-gray-500 block">Gross × Margin%</span>
+              </div>
+
+              <div className="space-y-1 border-r border-tgb-navyborder/60">
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                  Amount Paid to Customer
+                </span>
+                <span className="text-base sm:text-xl font-black text-emerald-400 font-mono">
+                  ${buyCalculation.amountPaidToCustomer.toFixed(2)}
+                </span>
+                <span className="text-[9px] text-gray-500 block">Gross - Margin</span>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">
+                  Expected Profit
+                </span>
+                <span className="text-base sm:text-lg font-bold text-cyan-400 font-mono">
+                  ${buyCalculation.profit.toFixed(2)}
+                </span>
+                <span className="text-[9px] text-gray-500 block">Locked Spread</span>
+              </div>
+            </div>
+          ) : (
+            /* SELL SUMMARY BREAKDOWN */
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+              <div className="space-y-1 border-r border-tgb-navyborder/60">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                  Base Cost
+                </span>
+                <span className="text-base sm:text-lg font-bold text-white font-mono">
+                  ${sellCalculation.baseCost.toFixed(2)}
+                </span>
+                <span className="text-[9px] text-gray-500 block">Acquisition Value</span>
+              </div>
+
+              <div className="space-y-1 border-r border-tgb-navyborder/60">
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+                  Margin %
+                </span>
+                <span className="text-base sm:text-lg font-bold text-amber-400 font-mono">
+                  {sellCalculation.marginPercent.toFixed(2)}%
+                </span>
+                <span className="text-[9px] text-gray-500 block">Retail Markup</span>
+              </div>
+
+              <div className="space-y-1 border-r border-tgb-navyborder/60">
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+                  Margin Amount
+                </span>
+                <span className="text-base sm:text-lg font-bold text-amber-400 font-mono">
+                  ${sellCalculation.marginAmount.toFixed(2)}
+                </span>
+                <span className="text-[9px] text-gray-500 block">Cost × Margin%</span>
+              </div>
+
+              <div className="space-y-1 border-r border-tgb-navyborder/60">
+                <span className="text-[10px] font-bold text-white uppercase tracking-wider block">
+                  Selling Amount
+                </span>
+                <span className="text-base sm:text-xl font-black text-white font-mono">
+                  ${sellCalculation.sellingAmount.toFixed(2)}
+                </span>
+                <span className="text-[9px] text-gray-500 block">Cost + Margin</span>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                  Expected Profit
+                </span>
+                <span className="text-base sm:text-lg font-bold text-emerald-400 font-mono">
+                  ${sellCalculation.profit.toFixed(2)}
+                </span>
+                <span className="text-[9px] text-gray-500 block">Net Realized Gain</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 5. STEP 4: MULTIPLE PAYMENT METHODS SYSTEM */}
+      <div className="bg-tgb-navy border border-tgb-navyborder rounded-3xl p-6 shadow-xl space-y-5">
+        <div className="flex items-center justify-between pb-3 border-b border-tgb-navyborder">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-tgb-gold/20 text-tgb-gold text-xs font-bold flex items-center justify-center">
+              4
+            </span>
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+              Disbursement & Multiple Payment Splits
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={handleAddPaymentRow}
+            className="py-1.5 px-3 bg-tgb-gold/15 hover:bg-tgb-gold/25 border border-tgb-gold/30 text-tgb-gold font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-all"
+          >
+            <Plus className="w-3.5 h-3.5" /> + Add Payment Method
+          </button>
+        </div>
+
+        {/* Dynamic Payment Rows */}
+        <div className="space-y-3">
+          {payments.map((p, idx) => (
+            <div
+              key={p.id || idx}
+              className="bg-[#071320] border border-tgb-navyborder rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center"
+            >
+              {/* Payment Method Selector */}
+              <div className="sm:col-span-4 space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">
+                  Method #{idx + 1}
+                </label>
+                <select
+                  value={p.method}
+                  onChange={(e) => handleUpdatePayment(idx, { method: e.target.value as any })}
+                  className="w-full bg-[#0a1827] border border-tgb-navyborder rounded-xl px-3 py-2 text-white text-xs font-bold focus:border-tgb-gold focus:outline-none cursor-pointer"
+                >
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {m === 'Cash' ? '💵 Cash' : m === 'Card' ? '💳 Card' : m === 'Bank Transfer' ? '🏦 Bank Transfer' : m === 'UPI' ? '📱 UPI' : m === 'Cheque' ? '📝 Cheque' : '⚙️ Other'} {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Amount Input */}
+              <div className="sm:col-span-4 space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">
+                  Amount ($)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={p.amount === 0 ? '' : p.amount}
+                    onChange={(e) => handleUpdatePayment(idx, { amount: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                    className="w-full bg-[#0a1827] border border-tgb-navyborder focus:border-tgb-gold rounded-xl pl-7 pr-3 py-2 text-white font-mono text-xs sm:text-sm font-bold focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Reference / Notes */}
+              <div className="sm:col-span-3 space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">
+                  Reference # (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. TX-984201"
+                  value={p.referenceNumber || ''}
+                  onChange={(e) => handleUpdatePayment(idx, { referenceNumber: e.target.value })}
+                  className="w-full bg-[#0a1827] border border-tgb-navyborder rounded-xl px-3 py-2 text-white text-xs placeholder:text-gray-600 focus:outline-none"
+                />
+              </div>
+
+              {/* Remove Row Button */}
+              <div className="sm:col-span-1 flex justify-end">
+                <button
+                  type="button"
+                  disabled={payments.length <= 1}
+                  onClick={() => handleRemovePaymentRow(idx)}
+                  className="p-2 text-gray-500 hover:text-rose-400 disabled:opacity-30 cursor-pointer rounded-lg hover:bg-rose-500/10"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Live Payment Validation Status Banner */}
+        <div className="bg-[#071320] border border-tgb-navyborder rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3">
+            <span
+              className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${
+                paymentSummary.paymentStatus === 'Fully Paid'
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                  : paymentSummary.paymentStatus === 'Partially Paid'
+                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                  : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
               }`}
             >
-              <span>{method === 'CASH' ? '💵 Cash' : method === 'CARD' ? '💳 Card' : method === 'WIRE' ? '🏦 Wire' : '📝 Cheque'}</span>
-              <span>{method}</span>
-            </button>
-          ))}
+              {paymentSummary.paymentStatus}
+            </span>
+            <span className="text-gray-300">
+              Total Required: <strong className="text-white">${targetTotal.toFixed(2)}</strong> • Paid: <strong className="text-white">${paymentSummary.totalPaid.toFixed(2)}</strong>
+            </span>
+          </div>
+
+          {paymentSummary.isShort && (
+            <span className="text-rose-400 font-bold flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5" /> Payment short by ${paymentSummary.difference.toFixed(2)}
+            </span>
+          )}
+
+          {paymentSummary.isExceed && (
+            <span className="text-amber-400 font-bold flex items-center gap-1">
+              <AlertTriangle className="w-3.5 h-3.5" /> Payment exceeds total by ${paymentSummary.difference.toFixed(2)}
+            </span>
+          )}
+
+          {paymentSummary.isExact && (
+            <span className="text-emerald-400 font-bold flex items-center gap-1">
+              <Check className="w-3.5 h-3.5 stroke-[3]" /> Exact Amount Balanced
+            </span>
+          )}
         </div>
 
         {/* Complete Transaction Button */}
@@ -837,14 +1125,14 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
           }`}
         >
           {isSaving ? (
-            <span>Processing Transaction in Supabase...</span>
+            <span>Processing and Recording in Supabase PostgreSQL...</span>
           ) : (
             <>
               <Check className="w-5 h-5 stroke-[3]" />
               <span>
                 {txType === 'BUY'
-                  ? `COMPLETE BUY — PAYOUT $${finalBuyPayout.toFixed(2)}`
-                  : `COMPLETE SELL — RECEIVE $${finalSellTotal.toFixed(2)}`}
+                  ? `COMPLETE BUY — PAYOUT $${buyCalculation.amountPaidToCustomer.toFixed(2)} (PROFIT $${buyCalculation.profit.toFixed(2)})`
+                  : `COMPLETE SALE — RECEIVE $${sellCalculation.sellingAmount.toFixed(2)} (PROFIT $${sellCalculation.profit.toFixed(2)})`}
               </span>
             </>
           )}
@@ -856,10 +1144,10 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-[#0a1827] border border-tgb-gold/40 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-tgb-navyborder">
-              <h3 className="text-lg font-bold text-white font-display">Add New Customer</h3>
+              <h3 className="text-lg font-bold text-white font-display">Add Customer</h3>
               <button
                 onClick={() => setCustomerModalOpen(false)}
-                className="p-1 text-gray-400 hover:text-white rounded-lg"
+                className="p-1 text-gray-400 hover:text-white rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -924,18 +1212,30 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
                 <button
                   type="button"
                   onClick={() => setCustomerModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-tgb-navy text-gray-300 text-xs font-bold"
+                  className="flex-1 py-2.5 rounded-xl bg-tgb-navy text-gray-300 text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-tgb-gold hover:bg-tgb-goldlight text-tgb-darknavy text-xs font-bold"
+                  className="flex-1 py-2.5 rounded-xl bg-tgb-gold hover:bg-tgb-goldlight text-tgb-darknavy text-xs font-bold cursor-pointer"
                 >
                   Save Customer
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* IMAGE ZOOM MODAL */}
+      {showImageZoom && imagePreview && (
+        <div
+          onClick={() => setShowImageZoom(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-pointer animate-fade-in"
+        >
+          <div className="relative max-w-2xl w-full max-h-[80vh] aspect-square rounded-2xl overflow-hidden border border-tgb-gold/50 shadow-2xl">
+            <Image src={imagePreview} alt="Enlarged Gold Item" fill className="object-contain" />
           </div>
         </div>
       )}

@@ -416,7 +416,8 @@ class DemoRepositorySingleton {
         tx.items.some((item) =>
           item.name.toLowerCase().includes(q) ||
           item.category.toLowerCase().includes(q) ||
-          item.material.toLowerCase().includes(q)
+          (item.material || '').toLowerCase().includes(q) ||
+          (item.purity || '').toLowerCase().includes(q)
         )
       );
     }

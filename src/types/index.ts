@@ -66,25 +66,36 @@ export interface ItemImage {
   uploadedAt: string;
 }
 
+export interface PaymentEntry {
+  id: string;
+  method: 'Cash' | 'Card' | 'Bank Transfer' | 'UPI' | 'Cheque' | 'Other';
+  amount: number;
+  referenceNumber?: string;
+  notes?: string;
+}
+
 export interface TransactionItem {
   id: string;
   isCustom: boolean;
   category: MetalCategory;
   name: string;
+  itemType?: string; // e.g. Gold Ring, Gold Chain, etc.
   description?: string;
-  material: string; // e.g. 14K Yellow Gold, 999 Fine Silver, Platinum
-  purity: string;   // e.g. 14K (58.5%), 24K (99.9%), 925 Sterling, VVS1/G
-  weight: number;   // numeric weight
+  material?: string;
+  purity: string;   // e.g. 24K, 22K, 20K, 18K, 14K, 10K, Custom
+  weight: number;   // numeric weight in grams
   unit: 'g' | 'oz' | 'dwt' | 'ct' | 'pcs';
   quantity: number;
+  ratePerGram?: number;
   estimatedMarketValue: number; // based on current spot/market rates
   offeredUnitPrice: number;    // agreed unit buy/sell price
   totalPrice: number;          // quantity * offeredUnitPrice
   notes?: string;
+  imageUrl?: string;
   images: ItemImage[];
 }
 
-export type PaymentMethod = 'CASH' | 'CARD' | 'CHEQUE' | 'WIRE' | 'STORE_CREDIT';
+export type PaymentMethod = 'CASH' | 'CARD' | 'CHEQUE' | 'WIRE' | 'STORE_CREDIT' | 'Cash' | 'Card' | 'Bank Transfer' | 'UPI' | 'Cheque' | 'Other';
 
 export interface PaymentDetails {
   method: PaymentMethod;
@@ -93,11 +104,9 @@ export interface PaymentDetails {
   referenceNumber: string;
   paidAt: string;
   notes?: string;
-  // Card specific (safe only, no CVV or full PAN)
   cardLast4?: string;
   cardType?: 'Visa' | 'Mastercard' | 'Amex' | 'Discover' | 'Debit';
   cardAuthCode?: string;
-  // Cheque specific
   chequeNumber?: string;
   bankName?: string;
   chequeDate?: string;
@@ -124,10 +133,15 @@ export interface Transaction {
   taxRatePercent: number;
   taxAmount: number;
   finalTotal: number;
+  marginPercent?: number;
+  marginAmount?: number;
+  profit?: number;
+  imageUrl?: string;
+  payments?: PaymentEntry[];
   payment: PaymentDetails;
   notes?: string;
   termsAccepted: boolean;
-  customerSignature?: string; // data URL / typed
+  customerSignature?: string;
   employeeSignature?: string;
   createdAt: string;
   updatedAt: string;

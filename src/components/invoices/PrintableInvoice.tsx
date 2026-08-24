@@ -118,16 +118,27 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ transaction 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t-2 border-gray-800 items-start">
         <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
           <span className="font-bold text-gray-900 uppercase text-[10px] tracking-wider block">
-            Payment Disbursement:
+            Payment Disbursement & Split Breakdown:
           </span>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Method:</span>
-            <strong className="text-gray-900">{transaction.payment.method}</strong>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">{isBuy ? 'Amount Paid Out:' : 'Amount Received:'}</span>
+          {transaction.payments && transaction.payments.length > 0 ? (
+            <div className="space-y-1">
+              {transaction.payments.map((p, idx) => (
+                <div key={p.id || idx} className="flex justify-between text-[11px]">
+                  <span className="text-gray-600">{p.method}:</span>
+                  <strong className="text-gray-900 font-mono">${Number(p.amount).toFixed(2)}</strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex justify-between">
+              <span className="text-gray-600">Method:</span>
+              <strong className="text-gray-900">{transaction.payment.method}</strong>
+            </div>
+          )}
+          <div className="flex justify-between pt-1 border-t border-gray-200">
+            <span className="text-gray-700 font-bold">{isBuy ? 'Amount Paid Out:' : 'Amount Received:'}</span>
             <span className="font-mono font-bold text-emerald-800 text-sm">
-              ${transaction.payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              ${transaction.finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
           </div>
         </div>

@@ -1,38 +1,80 @@
 import { createClient } from '@/utils/supabase/client';
-import { Transaction, TransactionItem, PaymentDetails } from '@/types';
+import { Transaction, TransactionItem, PaymentDetails, PaymentEntry } from '@/types';
 import { DemoRepository } from '@/lib/demoRepository';
 
-function mapDbTransaction(tx: any, items: any[] = [], payment?: any, customer?: any, employee?: any, location?: any): Transaction {
+function mapDbTransaction(
+  tx: any,
+  items: any[] = [],
+  payment?: any,
+  customer?: any,
+  employee?: any,
+  location?: any,
+  paymentList: any[] = []
+): Transaction {
   const mappedItems: TransactionItem[] = (items || []).map((i) => ({
     id: i.id,
     isCustom: !i.item_id,
     category: i.category || 'Gold',
     name: i.item_name || 'Gold Item',
+    itemType: i.item_type || i.item_name,
     description: i.description || undefined,
-    material: i.material || '14K Gold',
-    purity: i.purity || '14K (58.5%)',
+    material: i.material || 'Gold',
+    purity: i.purity || '22K',
     weight: Number(i.weight) || 1,
     unit: i.unit || 'g',
     quantity: Number(i.quantity) || 1,
+    ratePerGram: Number(i.unit_price) || undefined,
     estimatedMarketValue: Number(i.estimated_value) || 0,
     offeredUnitPrice: Number(i.unit_price) || 0,
     totalPrice: Number(i.total_price) || 0,
     notes: i.notes || undefined,
-    images: [],
+    imageUrl: i.image_url || undefined,
+    images: i.image_url
+      ? [{ id: `IMG-${i.id}`, url: i.image_url, tag: 'General', fileName: 'item-image.png', uploadedAt: tx.created_at }]
+      : [],
   }));
 
-  const mappedPayment: PaymentDetails = payment
+  // Map multiple payment method rows
+  const mappedPayments: PaymentEntry[] = (paymentList && paymentList.length > 0)
+    ? paymentList.map((p) => ({
+        id: p.id,
+        method: p.payment_method || 'Cash',
+        amount: Number(p.amount) || 0,
+        referenceNumber: p.reference_number || undefined,
+        notes: p.notes || undefined,
+      }))
+    : payment
+    ? [
+        {
+          id: payment.id || `PAY-${tx.id}`,
+          method: payment.payment_method || 'Cash',
+          amount: Number(payment.amount) || Number(tx.total_amount) || 0,
+          referenceNumber: payment.reference_number,
+          notes: payment.notes,
+        },
+      ]
+    : [
+        {
+          id: `PAY-${tx.id}`,
+          method: 'Cash',
+          amount: Number(tx.total_amount) || 0,
+        },
+      ];
+
+  const primaryPayment = payment || (paymentList && paymentList[0]);
+
+  const mappedPayment: PaymentDetails = primaryPayment
     ? {
-        method: payment.payment_method || 'CASH',
-        amount: Number(payment.amount) || Number(tx.total_amount) || 0,
-        status: payment.payment_status || 'COMPLETED',
-        referenceNumber: payment.reference_number || `REF-${tx.id.slice(0, 8)}`,
-        paidAt: payment.payment_date || tx.created_at,
-        cardLast4: payment.card_last_four || undefined,
-        cardType: payment.card_type || undefined,
-        chequeNumber: payment.cheque_number || undefined,
-        bankName: payment.bank_name || undefined,
-        notes: payment.notes || undefined,
+        method: primaryPayment.payment_method || 'CASH',
+        amount: Number(primaryPayment.amount) || Number(tx.total_amount) || 0,
+        status: primaryPayment.payment_status || 'COMPLETED',
+        referenceNumber: primaryPayment.reference_number || `REF-${tx.id.slice(0, 8)}`,
+        paidAt: primaryPayment.payment_date || tx.created_at,
+        cardLast4: primaryPayment.card_last_four || undefined,
+        cardType: primaryPayment.card_type || undefined,
+        chequeNumber: primaryPayment.cheque_number || undefined,
+        bankName: primaryPayment.bank_name || undefined,
+        notes: primaryPayment.notes || undefined,
       }
     : {
         method: 'CASH',
@@ -48,13 +90,13 @@ function mapDbTransaction(tx: any, items: any[] = [], payment?: any, customer?: 
     type: tx.transaction_type,
     customerId: tx.customer_id,
     customerName: customer?.full_name || tx.customer_name || 'Valued Customer',
-    customerPhone: customer?.phone || tx.customer_phone || '(214) 555-0199',
+    customerPhone: customer?.phone || tx.customer_phone || '(469) 453-5339',
     customerEmail: customer?.email || tx.customer_email || 'client@texasgoldbuyers.com',
     customerAddress: customer?.address || tx.customer_address,
     employeeId: tx.employee_id,
     employeeName: employee?.full_name || tx.employee_name || 'Alexander Sterling',
     locationId: tx.location_id,
-    locationName: location?.name || tx.location_name || 'Dallas Flagship — Uptown',
+    locationName: location?.name || tx.location_name || 'Dallas Flagship — 2427 W Mockingbird Ln',
     transactionDate: tx.transaction_date || tx.created_at,
     status: tx.status,
     items: mappedItems,
@@ -63,6 +105,11 @@ function mapDbTransaction(tx: any, items: any[] = [], payment?: any, customer?: 
     taxRatePercent: Number(tx.tax_rate_percent) || 0,
     taxAmount: Number(tx.tax) || 0,
     finalTotal: Number(tx.total_amount) || 0,
+    marginPercent: Number(tx.margin_percentage) || undefined,
+    marginAmount: Number(tx.margin_amount) || undefined,
+    profit: Number(tx.profit) || undefined,
+    imageUrl: mappedItems[0]?.imageUrl,
+    payments: mappedPayments,
     payment: mappedPayment,
     notes: tx.notes || undefined,
     termsAccepted: tx.terms_accepted ?? true,
@@ -109,18 +156,19 @@ export const transactionService = {
         mapDbTransaction(
           tx,
           tx.items || [],
-          tx.payments?.[0],
+          (tx.payments && tx.payments[0]) || null,
           tx.customer,
           tx.employee,
-          tx.location
+          tx.location,
+          tx.payments || []
         )
       );
     }
 
-    return await DemoRepository.getTransactions();
+    return DemoRepository.getTransactions();
   },
 
-  async getById(id: string): Promise<Transaction | undefined> {
+  async getById(id: string): Promise<Transaction | null> {
     const supabase = createClient();
     const { data: tx, error } = await supabase
       .from('transactions')
@@ -139,59 +187,109 @@ export const transactionService = {
       return mapDbTransaction(
         tx,
         tx.items || [],
-        tx.payments?.[0],
+        (tx.payments && tx.payments[0]) || null,
         tx.customer,
         tx.employee,
-        tx.location
+        tx.location,
+        tx.payments || []
       );
     }
 
-    return await DemoRepository.getTransactionById(id);
+    const fallback = await DemoRepository.getTransactionById(id);
+    return fallback || null;
   },
 
   async getByCustomerId(customerId: string): Promise<Transaction[]> {
-    const all = await this.getAll();
-    return all.filter((t) => t.customerId === customerId);
+    const supabase = createClient();
+    const { data: txList, error } = await supabase
+      .from('transactions')
+      .select(`
+        *,
+        customer:customers(*),
+        employee:profiles(*),
+        location:locations(*),
+        items:transaction_items(*),
+        payments:payments(*)
+      `)
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false });
+
+    if (!error && txList && txList.length > 0) {
+      return txList.map((tx: any) =>
+        mapDbTransaction(
+          tx,
+          tx.items || [],
+          (tx.payments && tx.payments[0]) || null,
+          tx.customer,
+          tx.employee,
+          tx.location,
+          tx.payments || []
+        )
+      );
+    }
+
+    return DemoRepository.getTransactionsByCustomerId(customerId);
   },
 
-  async search(params: SearchTransactionParams): Promise<Transaction[]> {
+  async search(params: SearchTransactionParams = {}): Promise<Transaction[]> {
     const all = await this.getAll();
-    let result = [...all];
+    let results = [...all];
 
     if (params.query) {
       const q = params.query.toLowerCase();
-      result = result.filter(
+      results = results.filter(
         (t) =>
+          t.id.toLowerCase().includes(q) ||
           t.invoiceNumber.toLowerCase().includes(q) ||
           t.customerName.toLowerCase().includes(q) ||
-          t.items.some((i) => i.name.toLowerCase().includes(q))
+          t.customerPhone.includes(q) ||
+          t.items.some((i) => i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q))
       );
     }
 
     if (params.type && params.type !== 'ALL') {
-      result = result.filter((t) => t.type === params.type);
+      results = results.filter((t) => t.type === params.type);
     }
 
     if (params.employeeId) {
-      result = result.filter((t) => t.employeeId === params.employeeId);
+      results = results.filter((t) => t.employeeId === params.employeeId);
+    }
+
+    if (params.locationId) {
+      results = results.filter((t) => t.locationId === params.locationId);
     }
 
     if (params.status) {
-      result = result.filter((t) => t.status === params.status);
+      results = results.filter((t) => t.status === params.status);
     }
 
-    return result;
+    if (params.sortBy) {
+      switch (params.sortBy) {
+        case 'newest':
+          results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          break;
+        case 'oldest':
+          results.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          break;
+        case 'amount_high':
+          results.sort((a, b) => b.finalTotal - a.finalTotal);
+          break;
+        case 'amount_low':
+          results.sort((a, b) => a.finalTotal - b.finalTotal);
+          break;
+      }
+    }
+
+    return results;
   },
 
-  async create(data: Omit<Transaction, 'id' | 'invoiceNumber' | 'createdAt' | 'updatedAt'>): Promise<Transaction> {
+  async create(data: Partial<Transaction>): Promise<Transaction> {
     const supabase = createClient();
 
-    // Verify valid foreign key IDs from Supabase
     let custId = data.customerId;
     let empId = data.employeeId;
     let locId = data.locationId;
 
-    // Check if customer exists in Supabase, else fetch or create
     if (custId) {
       const { data: dbCust } = await supabase.from('customers').select('id').eq('id', custId).single();
       if (!dbCust) {
@@ -203,11 +301,9 @@ export const transactionService = {
       if (anyCust) custId = anyCust.id;
     }
 
-    // Check if employee exists in Supabase
     const { data: dbEmp } = await supabase.from('profiles').select('id').limit(1).single();
     if (dbEmp) empId = dbEmp.id;
 
-    // Check if location exists in Supabase
     const { data: dbLoc } = await supabase.from('locations').select('id').limit(1).single();
     if (dbLoc) locId = dbLoc.id;
 
@@ -246,22 +342,33 @@ export const transactionService = {
           transaction_id: insertedTx.id,
           item_name: item.name,
           category: item.category,
-          material: item.material,
-          purity: item.purity,
+          material: item.material || 'Gold',
+          purity: item.purity || '22K',
           weight: item.weight,
-          unit: item.unit,
-          quantity: item.quantity,
+          unit: item.unit || 'g',
+          quantity: item.quantity || 1,
           unit_price: item.offeredUnitPrice,
           estimated_value: item.estimatedMarketValue,
           offered_price: item.offeredUnitPrice,
           total_price: item.totalPrice,
           notes: item.notes || null,
+          image_url: item.imageUrl || null,
         }));
         await supabase.from('transaction_items').insert(itemsPayload);
       }
 
-      // 3. Insert payment record
-      if (data.payment) {
+      // 3. Insert payment records (support multiple payment methods)
+      if (data.payments && data.payments.length > 0) {
+        const paymentPayloads = data.payments.map((p) => ({
+          transaction_id: insertedTx.id,
+          payment_method: p.method,
+          amount: p.amount,
+          payment_status: 'COMPLETED',
+          reference_number: p.referenceNumber || `REF-${Date.now().toString().slice(-6)}`,
+          notes: p.notes || null,
+        }));
+        await supabase.from('payments').insert(paymentPayloads);
+      } else if (data.payment) {
         await supabase.from('payments').insert({
           transaction_id: insertedTx.id,
           payment_method: data.payment.method,
@@ -279,82 +386,57 @@ export const transactionService = {
       // 4. Record Audit Log
       await supabase.from('audit_logs').insert({
         user_id: empId,
-        user_name: data.employeeName,
+        user_name: data.employeeName || 'Staff Member',
         user_role: 'super_admin',
         action: 'CREATE',
         entity_type: 'TRANSACTION',
         entity_id: insertedTx.id,
-        details: `Created ${data.type} order ${invNumber} for $${data.finalTotal.toFixed(2)} (${data.customerName}).`,
+        details: `Created ${data.type} order ${invNumber} for $${Number(data.finalTotal).toFixed(2)} (${data.customerName}).`,
       });
 
-      const fullTx = mapDbTransaction(insertedTx, data.items as any, data.payment, {
-        full_name: data.customerName,
-        phone: data.customerPhone,
-        email: data.customerEmail,
-        address: data.customerAddress,
-      }, {
-        full_name: data.employeeName,
-      }, {
-        name: data.locationName,
-      });
+      const fullTx = mapDbTransaction(
+        insertedTx,
+        data.items as any,
+        data.payment,
+        {
+          full_name: data.customerName,
+          phone: data.customerPhone,
+          email: data.customerEmail,
+          address: data.customerAddress,
+        },
+        {
+          full_name: data.employeeName,
+        },
+        {
+          name: data.locationName,
+        },
+        data.payments || []
+      );
 
-      await DemoRepository.createTransaction({ ...data, id: fullTx.id, invoiceNumber: invNumber } as any);
       return fullTx;
     }
 
-    if (txError) {
-      console.warn('Supabase transaction insert notice:', txError.message);
-    }
-
-    return await DemoRepository.createTransaction(data);
+    // Fallback to local demo repository
+    return DemoRepository.createTransaction(data as any);
   },
 
-  async voidTransaction(id: string, reason: string, voidedByUserId: string): Promise<Transaction> {
+  async voidTransaction(id: string, reason: string): Promise<Transaction> {
     const supabase = createClient();
-    const { data: updated } = await supabase
+    const { data: updatedTx, error } = await supabase
       .from('transactions')
       .update({
         status: 'VOIDED',
         void_reason: reason,
-        voided_by: voidedByUserId,
         voided_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select()
       .single();
 
-    await supabase.from('audit_logs').insert({
-      user_id: voidedByUserId,
-      user_name: 'Admin',
-      user_role: 'super_admin',
-      action: 'VOID',
-      entity_type: 'TRANSACTION',
-      entity_id: id,
-      details: `Voided transaction ${id}. Reason: ${reason}`,
-    });
+    if (!error && updatedTx) {
+      return this.getById(id) as Promise<Transaction>;
+    }
 
-    return await DemoRepository.voidTransaction(id, reason, voidedByUserId);
-  },
-
-  async getHistoricalSummary(year?: number) {
-    const all = await this.getAll();
-    const filtered = year
-      ? all.filter((t) => new Date(t.transactionDate).getFullYear() === year)
-      : all;
-
-    const completed = filtered.filter((t) => t.status === 'COMPLETED');
-    const buys = completed.filter((t) => t.type === 'BUY');
-    const sells = completed.filter((t) => t.type === 'SELL');
-
-    return {
-      totalCount: filtered.length,
-      completedCount: completed.length,
-      voidedCount: filtered.filter((t) => t.status === 'VOIDED').length,
-      buyCount: buys.length,
-      buyAmount: buys.reduce((acc, t) => acc + t.finalTotal, 0),
-      sellCount: sells.length,
-      sellAmount: sells.reduce((acc, t) => acc + t.finalTotal, 0),
-      totalVolume: completed.reduce((acc, t) => acc + t.finalTotal, 0),
-    };
+    return DemoRepository.voidTransaction(id, reason, 'ADMIN');
   },
 };
