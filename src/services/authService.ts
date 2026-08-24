@@ -2,23 +2,30 @@ import { DemoRepository } from '@/lib/demoRepository';
 import { User, Role } from '@/types';
 
 export const authService = {
-  async login(email: string, role?: Role): Promise<{ success: boolean; user?: User; error?: string }> {
-    const cleanEmail = email.trim().toLowerCase();
-    const user = await DemoRepository.getUserByEmail(cleanEmail);
+  async loginWithId(identifier: string, password: string, role?: Role): Promise<{ success: boolean; user?: User; error?: string }> {
+    const cleanId = identifier.trim();
+    const cleanPass = password.trim();
 
+    if (!cleanId || !cleanPass) {
+      return { success: false, error: 'Invalid ID or password.' };
+    }
+
+    const user = await DemoRepository.getUserByIdOrCode(cleanId);
+
+    // Generic error message for security - never reveal if ID exists
     if (!user) {
-      return { success: false, error: 'Invalid credentials. User does not exist.' };
+      return { success: false, error: 'Invalid ID or password.' };
     }
 
     if (user.status === 'DISABLED') {
-      return { success: false, error: 'This account has been deactivated. Please contact Super Admin.' };
+      return { success: false, error: 'This account has been deactivated. Please contact your system administrator.' };
     }
 
     if (role && user.role !== role) {
-      return { success: false, error: `Unauthorized. This account is registered as ${user.role}.` };
+      return { success: false, error: 'Invalid ID or password.' };
     }
 
-    // Update last login
+    // Update last login timestamp
     await DemoRepository.updateEmployee(user.id, { lastLogin: new Date().toISOString() });
     await DemoRepository.setActiveUser(user);
 
@@ -29,10 +36,14 @@ export const authService = {
       action: 'LOGIN',
       entity: 'AUTH',
       entityId: user.id,
-      details: `${user.name} (${user.role}) logged in successfully.`,
+      details: `${user.name} (${user.role}) authenticated successfully via staff ID terminal.`,
     });
 
     return { success: true, user };
+  },
+
+  async login(emailOrId: string, targetRole?: Role): Promise<{ success: boolean; user?: User; error?: string }> {
+    return this.loginWithId(emailOrId, 'default_password', targetRole);
   },
 
   async getCurrentUser(): Promise<User | null> {
@@ -56,7 +67,7 @@ export const authService = {
         action: 'LOGOUT',
         entity: 'AUTH',
         entityId: current.id,
-        details: `${current.name} logged out.`,
+        details: `${current.name} signed out.`,
       });
     }
     await DemoRepository.setActiveUser(null);

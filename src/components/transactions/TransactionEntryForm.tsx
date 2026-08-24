@@ -39,6 +39,8 @@ import {
   Building,
   Calendar,
   X,
+  Printer,
+  History,
 } from 'lucide-react';
 import InvoiceViewModal from '@/components/invoices/InvoiceViewModal';
 
@@ -114,12 +116,13 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [savedTransaction, setSavedTransaction] = useState<Transaction | null>(null);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [isCompletedSuccess, setIsCompletedSuccess] = useState(false);
 
   // Load initial customers & menu
   useEffect(() => {
     customerService.getAll().then((data) => {
       setCustomers(data);
-      if (data.length > 0) setSelectedCustomer(data[0]); // default to first customer for rapid demo
+      if (data.length > 0) setSelectedCustomer(data[0]);
     });
     itemService.getPredefinedMenu().then(setMenuItems);
   }, []);
@@ -315,13 +318,128 @@ export const TransactionEntryForm: React.FC<TransactionEntryFormProps> = ({
       });
 
       setSavedTransaction(newTx);
-      setInvoiceModalOpen(true);
+      setIsCompletedSuccess(true);
     } catch (err: any) {
       alert(err.message || 'Failed to save transaction');
     } finally {
       setIsSaving(false);
     }
   };
+
+  if (isCompletedSuccess && savedTransaction) {
+    return (
+      <div className="max-w-2xl mx-auto my-6 bg-[#0a1827] border border-tgb-gold/40 rounded-3xl p-8 sm:p-12 shadow-2xl text-center space-y-6 animate-fade-in">
+        {/* Gold Checkmark Success Ring Animation */}
+        <div className="w-20 h-20 rounded-full bg-emerald-500/15 border-2 border-emerald-400 text-emerald-400 flex items-center justify-center mx-auto animate-pulse">
+          <CheckCircle2 className="w-10 h-10" />
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-xs font-bold uppercase tracking-widest text-tgb-gold">
+            Official Record Saved & Audited
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-display">
+            TRANSACTION COMPLETED
+          </h2>
+          <p className="text-xs text-gray-400">
+            DPS compliance record registered and inventory updated.
+          </p>
+        </div>
+
+        {/* Transaction Summary Card */}
+        <div className="bg-[#071320] border border-tgb-navyborder rounded-2xl p-6 text-left space-y-3 font-mono text-xs">
+          <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2">
+            <span className="text-gray-400">Receipt / Tx #:</span>
+            <span className="font-bold text-tgb-gold">{savedTransaction.invoiceNumber}</span>
+          </div>
+          <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2">
+            <span className="text-gray-400">Customer:</span>
+            <span className="font-bold text-white">{savedTransaction.customerName}</span>
+          </div>
+          <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2">
+            <span className="text-gray-400">Order Type:</span>
+            <span className={`font-bold ${savedTransaction.type === 'BUY' ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {savedTransaction.type === 'BUY' ? 'BUY ORDER (Customer Payout)' : 'RETAIL SALE'}
+            </span>
+          </div>
+          <div className="flex justify-between border-b border-tgb-navyborder/80 pb-2">
+            <span className="text-gray-400">Total Amount:</span>
+            <span className="font-bold text-xl text-white font-sans">
+              ${savedTransaction.finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Payment Method:</span>
+            <span className="font-bold text-white">{savedTransaction.payment.method} ({savedTransaction.payment.status})</span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+          <button
+            onClick={() => setInvoiceModalOpen(true)}
+            className="py-3 px-4 bg-tgb-gold hover:bg-tgb-goldlight text-tgb-darknavy font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <Printer className="w-4 h-4" />
+            <span>PRINT RECEIPT</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (user?.role === 'SUPER_ADMIN') {
+                router.push('/admin/transactions');
+              } else {
+                router.push('/employee/transactions');
+              }
+            }}
+            className="py-3 px-4 bg-tgb-navy hover:bg-tgb-navylight border border-tgb-navyborder text-gray-200 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <History className="w-4 h-4 text-tgb-gold" />
+            <span>VIEW TRANSACTIONS</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsCompletedSuccess(false);
+              setSavedTransaction(null);
+              setSelectedCustomer(null);
+              setNotes('');
+              setItems([
+                {
+                  id: `ITEM-INIT-${Date.now()}`,
+                  isCustom: false,
+                  category: 'Gold',
+                  name: 'Gold Ring',
+                  description: 'Standard XRF assayed gold piece.',
+                  material: '14K Yellow Gold',
+                  purity: '14K (58.5%)',
+                  weight: 10,
+                  unit: 'g',
+                  quantity: 1,
+                  estimatedMarketValue: 520.0,
+                  offeredUnitPrice: 52.0,
+                  totalPrice: 520.0,
+                  images: [],
+                }
+              ]);
+            }}
+            className="py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-tgb-darknavy font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>NEW TRANSACTION</span>
+          </button>
+        </div>
+
+        {invoiceModalOpen && (
+          <InvoiceViewModal
+            isOpen={invoiceModalOpen}
+            transaction={savedTransaction}
+            onClose={() => setInvoiceModalOpen(false)}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-16">

@@ -9,7 +9,7 @@ interface AuthContextType {
   user: User | null;
   role: Role | null;
   isLoading: boolean;
-  login: (email: string, role?: Role) => Promise<{ success: boolean; error?: string }>;
+  login: (identifier: string, password?: string, role?: Role) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   switchRole: (newRole: Role) => Promise<void>;
   resetDemoDatabase: () => void;
@@ -35,15 +35,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadUser();
   }, []);
 
-  const login = async (email: string, targetRole?: Role) => {
+  const login = async (identifier: string, password: string = 'password', targetRole?: Role) => {
     setIsLoading(true);
     try {
-      const res = await authService.login(email, targetRole);
+      const res = await authService.loginWithId(identifier, password, targetRole);
       if (res.success && res.user) {
         setUser(res.user);
         return { success: true };
       }
-      return { success: false, error: res.error || 'Login failed' };
+      return { success: false, error: res.error || 'Invalid ID or password.' };
     } finally {
       setIsLoading(false);
     }

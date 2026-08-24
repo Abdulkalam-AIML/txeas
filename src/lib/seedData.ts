@@ -61,6 +61,7 @@ export const INITIAL_LOCATIONS: Location[] = [
 export const INITIAL_USERS: User[] = [
   {
     id: 'USR-001',
+    employeeCode: 'EMP-001',
     name: 'Alexander Sterling',
     email: 'admin@texasgoldbuyers.com',
     phone: '(214) 555-0100',
@@ -73,6 +74,7 @@ export const INITIAL_USERS: User[] = [
   },
   {
     id: 'USR-002',
+    employeeCode: 'EMP-002',
     name: 'Michael Alvarez',
     email: 'employee@texasgoldbuyers.com',
     phone: '(214) 555-0144',
@@ -85,6 +87,7 @@ export const INITIAL_USERS: User[] = [
   },
   {
     id: 'USR-003',
+    employeeCode: 'EMP-003',
     name: 'Elena Rodriguez',
     email: 'elena.rodriguez@texasgoldbuyers.com',
     phone: '(713) 555-0192',
@@ -97,6 +100,7 @@ export const INITIAL_USERS: User[] = [
   },
   {
     id: 'USR-004',
+    employeeCode: 'EMP-004',
     name: 'Marcus Vance',
     email: 'marcus.vance@texasgoldbuyers.com',
     phone: '(512) 555-0231',
@@ -109,6 +113,7 @@ export const INITIAL_USERS: User[] = [
   },
   {
     id: 'USR-005',
+    employeeCode: 'EMP-005',
     name: 'Sarah Jenkins',
     email: 'sarah.jenkins@texasgoldbuyers.com',
     phone: '(210) 555-0377',
@@ -121,6 +126,7 @@ export const INITIAL_USERS: User[] = [
   },
   {
     id: 'USR-006',
+    employeeCode: 'EMP-006',
     name: 'David Chen',
     email: 'david.chen@texasgoldbuyers.com',
     phone: '(214) 555-0488',

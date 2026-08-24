@@ -2,6 +2,7 @@ export type Role = 'SUPER_ADMIN' | 'EMPLOYEE';
 
 export interface User {
   id: string;
+  employeeCode?: string;
   name: string;
   email: string;
   phone: string;

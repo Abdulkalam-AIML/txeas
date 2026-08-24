@@ -145,6 +145,30 @@ class DemoRepositorySingleton {
     return this.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
   }
 
+  public async getUserByIdOrCode(idOrCode: string): Promise<User | undefined> {
+    this.init();
+    const clean = idOrCode.trim().toLowerCase();
+    
+    // Direct code / id match
+    const found = this.users.find(
+      (u) =>
+        u.id.toLowerCase() === clean ||
+        (u.employeeCode && u.employeeCode.toLowerCase() === clean) ||
+        u.email.toLowerCase() === clean
+    );
+    if (found) return found;
+
+    // Support common alias inputs (e.g. 'admin', 'employee', 'tgb-adm-001', 'tgb-emp-002')
+    if (clean === 'admin' || clean === 'tgb-adm-001' || clean === 'tgb-admin-001' || clean === 'emp-001') {
+      return this.users.find((u) => u.role === 'SUPER_ADMIN');
+    }
+    if (clean === 'employee' || clean === 'tgb-emp-002' || clean === 'emp-002') {
+      return this.users.find((u) => u.role === 'EMPLOYEE');
+    }
+
+    return undefined;
+  }
+
   public async createEmployee(empData: Omit<User, 'id' | 'joinedDate'>): Promise<User> {
     this.init();
     const newId = `USR-${String(this.users.length + 1).padStart(3, '0')}`;
