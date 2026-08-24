@@ -251,7 +251,8 @@ export default function AdminItemsPage() {
                 <input
                   type="number"
                   step="0.1"
-                  value={itemForm.estPricePerUnit}
+                  placeholder="Enter price"
+                  value={itemForm.estPricePerUnit === 0 ? '' : itemForm.estPricePerUnit}
                   onChange={(e) => setItemForm({ ...itemForm, estPricePerUnit: parseFloat(e.target.value) || 0 })}
                   className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
                 />
@@ -306,7 +307,8 @@ export default function AdminItemsPage() {
                   <input
                     type="number"
                     step="0.1"
-                    value={editingItem.estPricePerUnit || 0}
+                    placeholder="Enter price"
+                    value={editingItem.estPricePerUnit === 0 ? '' : editingItem.estPricePerUnit}
                     onChange={(e) => setEditingItem({ ...editingItem, estPricePerUnit: parseFloat(e.target.value) || 0 })}
                     className="w-full bg-tgb-darknavy border border-tgb-navyborder rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-tgb-gold font-mono"
                   />

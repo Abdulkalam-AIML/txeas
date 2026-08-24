@@ -68,8 +68,12 @@ export interface ItemImage {
 
 export interface PaymentEntry {
   id: string;
-  method: 'Cash' | 'Card' | 'Bank Transfer' | 'UPI' | 'Cheque' | 'Other';
-  amount: number;
+  method: 'Cash' | 'Card' | 'Cheque' | 'Wire' | 'Bank Transfer' | 'Store Credit' | 'UPI' | 'Other';
+  amount: number | string;
+  cardType?: 'Visa' | 'Mastercard' | 'Amex' | 'Discover' | 'Debit';
+  cardLast4?: string;
+  chequeNumber?: string;
+  bankName?: string;
   referenceNumber?: string;
   notes?: string;
 }
@@ -95,7 +99,20 @@ export interface TransactionItem {
   images: ItemImage[];
 }
 
-export type PaymentMethod = 'CASH' | 'CARD' | 'CHEQUE' | 'WIRE' | 'STORE_CREDIT' | 'Cash' | 'Card' | 'Bank Transfer' | 'UPI' | 'Cheque' | 'Other';
+export type PaymentMethod =
+  | 'CASH'
+  | 'CARD'
+  | 'CHEQUE'
+  | 'WIRE'
+  | 'STORE_CREDIT'
+  | 'Cash'
+  | 'Card'
+  | 'Bank Transfer'
+  | 'Wire'
+  | 'Cheque'
+  | 'Store Credit'
+  | 'UPI'
+  | 'Other';
 
 export interface PaymentDetails {
   method: PaymentMethod;
