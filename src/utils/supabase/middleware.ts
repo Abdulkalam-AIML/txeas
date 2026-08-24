@@ -32,7 +32,32 @@ export const updateSession = async (request: NextRequest) => {
     },
   );
 
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { pathname } = request.nextUrl;
+
+  const isInternalPath =
+    pathname.startsWith('/portal') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/employee');
+
+  const isAuthPage =
+    pathname === '/login' ||
+    pathname === '/admin/login' ||
+    pathname === '/employee/login';
+
+  // 1. If unauthenticated user tries to access protected internal routes -> redirect to /login
+  if (!user && isInternalPath && !isAuthPage) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
+  // 2. If already authenticated user tries to open login page -> redirect to /portal/dashboard
+  if (user && isAuthPage) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/portal/dashboard';
+    return NextResponse.redirect(url);
+  }
 
   return supabaseResponse;
 };
