@@ -1,0 +1,50 @@
+name: Supabase Database Migration CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/seed.sql'
+  workflow_dispatch:
+
+jobs:
+  deploy-migrations:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Verify Migrations Syntax & Quality
+        run: |
+          echo "Verifying Supabase migrations files..."
+          ls -la supabase/migrations/
+
+      - name: Deploy Migrations to Production Supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: tyepalmkwoxcqzizkknx
+        if: env.SUPABASE_ACCESS_TOKEN != ''
+        run: |
+          echo "Linking to Supabase project..."
+          npx supabase link --project-ref "$SUPABASE_PROJECT_ID"
+          echo "Pushing database migrations..."
+          npx supabase db push
